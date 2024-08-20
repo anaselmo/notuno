@@ -1,0 +1,99 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+body,
+html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: Georgia, "Times New Roman", Times, serif;
+}
+
+/* Fondo en mosaico con animación */
+body {
+  background: url("./assets/patternComplete.png") repeat;
+  animation: moveBackground 30s linear infinite;
+  background-repeat: repeat;
+  background-size: 128px 128px;
+  background-color: black;
+}
+
+/* Animación para mover el fondo */
+@keyframes moveBackground {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 512px 512px;
+  }
+}
+
+/* Contenedor principal */
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+}
+
+h1 {
+  clip-path: polygon(
+    0 20%,
+    10% 0,
+    90% 0,
+    100% 20%,
+    100% 80%,
+    90% 100%,
+    10% 100%,
+    0% 80%
+  );
+  background-color: #1a1a1a;
+  background-position: center;
+  color: white;
+  margin: 0;
+  padding: 30px 60px;
+  font-size: 150px;
+}
+
+button {
+  clip-path: polygon(
+    0 20%,
+    10% 0,
+    90% 0,
+    100% 20%,
+    100% 80%,
+    90% 100%,
+    10% 100%,
+    0% 80%
+  );
+  background-color: #1a1a1a;
+  border: none;
+  color: white;
+  padding: 15px 30px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 32px;
+  margin: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-family: Georgia, "Times New Roman", Times, serif;
+}
+
+button:hover {
+  background-color: #3e3e3e;
+}
+
+/* Estilo de los botones */
+.buttonWrapper {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+}
