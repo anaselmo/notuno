@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState, useRef } from "react";
+import { useLayoutEffect, useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { DataConnection } from "peerjs";
 import { usePeer } from "../../contexts/PeerProvider";
@@ -15,6 +15,21 @@ export const RoomPage = () => {
   const iAmHost = peer.id === id;
   console.log("length:", connections.length);
   const lastMessageRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) =>
+      event.preventDefault();
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    window.history.replaceState(null, "", "/lobby");
+  }, [navigate]);
 
   const sendMessage = () => {
     if (newMessage.trim() !== "") {
