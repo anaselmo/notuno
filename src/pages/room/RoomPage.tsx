@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState, useRef } from "react"; // Step 1: Import useRef
+import { useLayoutEffect, useState, useRef } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { DataConnection } from "peerjs";
 import { usePeer } from "../../contexts/PeerProvider";
@@ -63,15 +63,28 @@ export const RoomPage = () => {
     }
   }, [location.pathname]);
 
-  useLayoutEffect(() => {
-    if (lastMessageRef.current) {
-      lastMessageRef.current.scrollIntoView({ behavior: "smooth" });
+  const copyIdToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(id!);
+      console.log("ID copied to clipboard!");
+    } catch (err) {
+      console.error("Failed to copy: ", err);
     }
-  }, [messages]);
+  };
 
   return (
     <div>
-      <h2>Room ID: {id}</h2>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
+        <h2>Room ID: {id}</h2>
+        <button onClick={copyIdToClipboard}>Copy ID</button>
+      </div>
       <div
         className="chatBox"
         style={{
