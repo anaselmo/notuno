@@ -28,9 +28,9 @@ const router = createBrowserRouter([
 export const peer = new Peer();
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <PeerProvider>
-      <RouterProvider router={router} />
-    </PeerProvider>
-  </StrictMode>
+  // <StrictMode>
+  <PeerProvider>
+    <RouterProvider router={router} />
+  </PeerProvider>
+  // </StrictMode>
 );

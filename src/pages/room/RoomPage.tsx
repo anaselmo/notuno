@@ -1,9 +1,11 @@
-import { useEffect, useState, useRef } from "react"; // Step 1: Import useRef
-import { useNavigate, useParams } from "react-router-dom";
+import { useLayoutEffect, useState, useRef } from "react"; // Step 1: Import useRef
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { DataConnection } from "peerjs";
 import { usePeer } from "../../contexts/PeerProvider";
 
 export const RoomPage = () => {
+  console.log("renderizando COÑOOOOOOOOOSSSSSS");
+  const location = useLocation();
   const { id } = useParams();
   const navigate = useNavigate();
   const { peer } = usePeer();
@@ -11,23 +13,36 @@ export const RoomPage = () => {
   const [newMessage, setNewMessage] = useState("");
   const [connections, setConnections] = useState<DataConnection[]>([]);
   const iAmHost = peer.id === id;
-
+  console.log("length:", connections.length);
   const lastMessageRef = useRef<HTMLParagraphElement>(null);
 
   const sendMessage = () => {
     if (newMessage.trim() !== "") {
+      console.log("sending: ", newMessage);
       connections.forEach((conn) => {
         conn.send(newMessage);
+        console.log("sent to:", conn);
       });
       setMessages((prevMessages) => [...prevMessages, `Me: ${newMessage}`]);
       setNewMessage("");
     }
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const handleConnection = (conn: DataConnection) => {
+      console.log("handling connection ", connections.length);
       if (
-        !connections.find((existingConn) => existingConn.peer === conn.peer)
+        !connections.find((existingConn) => {
+          console.log(
+            "existing ",
+            existingConn.peer,
+            " conn ",
+            conn.peer,
+            " compare ",
+            existingConn.peer === conn.peer
+          );
+          return existingConn.peer === conn.peer;
+        })
       ) {
         conn.on("data", (data) => {
           setMessages((prevMessages) => [
@@ -36,6 +51,7 @@ export const RoomPage = () => {
           ]);
         });
         setConnections((prevConnections) => [...prevConnections, conn]);
+        console.log("connection added ", conn);
       }
     };
 
@@ -45,16 +61,9 @@ export const RoomPage = () => {
       const conn = peer.connect(id as string);
       conn.on("open", () => handleConnection(conn));
     }
+  }, [location.pathname]);
 
-    return () => {
-      connections.forEach((conn) => conn.close());
-      if (iAmHost) {
-        peer.off("connection", handleConnection);
-      }
-    };
-  }, [iAmHost, id, peer, connections]);
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (lastMessageRef.current) {
       lastMessageRef.current.scrollIntoView({ behavior: "smooth" });
     }
