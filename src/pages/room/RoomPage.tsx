@@ -4,7 +4,7 @@ import { DataConnection } from "peerjs";
 import { usePeer } from "../../contexts/PeerProvider";
 
 export const RoomPage = () => {
-  console.log("renderizando COÑOOOOOOOOOSSSSSS");
+  console.log("renderizando");
   const location = useLocation();
   const { id } = useParams();
   const navigate = useNavigate();
@@ -13,7 +13,6 @@ export const RoomPage = () => {
   const [newMessage, setNewMessage] = useState("");
   const [connections, setConnections] = useState<DataConnection[]>([]);
   const iAmHost = peer.id === id;
-  console.log("length:", connections.length);
   const lastMessageRef = useRef<HTMLParagraphElement>(null);
 
   const sendMessage = () => {
@@ -21,7 +20,6 @@ export const RoomPage = () => {
       console.log("sending: ", newMessage);
       connections.forEach((conn) => {
         conn.send(newMessage);
-        console.log("sent to:", conn);
       });
       setMessages((prevMessages) => [...prevMessages, `Me: ${newMessage}`]);
       setNewMessage("");
@@ -33,14 +31,6 @@ export const RoomPage = () => {
       console.log("handling connection ", connections.length);
       if (
         !connections.find((existingConn) => {
-          console.log(
-            "existing ",
-            existingConn.peer,
-            " conn ",
-            conn.peer,
-            " compare ",
-            existingConn.peer === conn.peer
-          );
           return existingConn.peer === conn.peer;
         })
       ) {
@@ -50,11 +40,20 @@ export const RoomPage = () => {
             `${iAmHost ? "Guest" : "Host"}: ${data}`,
           ]);
         });
+        conn.on("close", () => handleDisconnection(conn));
         setConnections((prevConnections) => [...prevConnections, conn]);
         console.log("connection added ", conn);
       }
     };
 
+    const handleDisconnection = (conn: DataConnection) => {
+      setConnections((prevConnections) =>
+        prevConnections.filter((existingConn) => {
+          return existingConn.peer !== conn.peer;
+        })
+      );
+      conn.removeAllListeners();
+    };
     if (iAmHost) {
       peer.on("connection", handleConnection);
     } else {
