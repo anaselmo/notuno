@@ -1,18 +1,19 @@
 import { useLayoutEffect, useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { DataConnection } from "peerjs";
-import { usePeer } from "../../contexts/PeerProvider";
+import { Comm } from "../../utils/comm";
+
+const chatCommunicator = new Comm("chat");
+const logicCommunicator = new Comm("logic");
 
 export const RoomPage = () => {
   console.log("renderizando");
   const location = useLocation();
   const { id } = useParams();
   const navigate = useNavigate();
-  const { peer } = usePeer();
+  // const { peer } = usePeer();
   const [messages, setMessages] = useState<string[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [connections, setConnections] = useState<DataConnection[]>([]);
-  const iAmHost = peer.id === id;
+  // const iAmHost = peer.id === id;
   const lastMessageRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
@@ -30,52 +31,24 @@ export const RoomPage = () => {
     window.history.replaceState(null, "", "/lobby");
   }, [navigate]);
 
-  const sendMessage = () => {
-    if (newMessage.trim() !== "") {
-      console.log("sending: ", newMessage);
-      connections.forEach((conn) => {
-        conn.send(newMessage);
-      });
-      setMessages((prevMessages) => [...prevMessages, `Me: ${newMessage}`]);
-      setNewMessage("");
-    }
+  const sendChatMessage = () => {
+    setMessages((prevMessages) => [...prevMessages, `Me: ${newMessage}`]);
+    chatCommunicator.broadcast(newMessage);
+    setNewMessage("");
   };
 
   useLayoutEffect(() => {
-    const handleConnection = (conn: DataConnection) => {
-      console.log("handling connection ", connections.length);
-      if (
-        !connections.find((existingConn) => {
-          return existingConn.peer === conn.peer;
-        })
-      ) {
-        conn.on("data", (data) => {
-          setMessages((prevMessages) => [
-            ...prevMessages,
-            `${iAmHost ? "Guest" : "Host"}: ${data}`,
-          ]);
-        });
-        conn.on("close", () => handleDisconnection(conn));
-        setConnections((prevConnections) => [...prevConnections, conn]);
-        console.log("connection added ", conn);
-      }
-    };
+    chatCommunicator.on("chatMessage", (data) => {
+      setMessages((prevMessages) => [...prevMessages, `Other: ${data}`]);
+    });
+    logicCommunicator.on("", () => {
+      console.log("uwu");
+    });
 
-    const handleDisconnection = (conn: DataConnection) => {
-      setConnections((prevConnections) =>
-        prevConnections.filter((existingConn) => {
-          return existingConn.peer !== conn.peer;
-        })
-      );
-      conn.removeAllListeners();
+    return () => {
+      Comm.leaveRoom();
     };
-    if (iAmHost) {
-      peer.on("connection", handleConnection);
-    } else {
-      const conn = peer.connect(id as string);
-      conn.on("open", () => handleConnection(conn));
-    }
-  }, [location.pathname]);
+  }, []);
 
   const copyIdToClipboard = async () => {
     try {
@@ -122,17 +95,16 @@ export const RoomPage = () => {
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+          onKeyPress={(e) => e.key === "Enter" && sendChatMessage()}
           style={{ width: "80%", marginRight: "10px" }}
         />
-        <button onClick={sendMessage} style={{ width: "15%" }}>
+        <button onClick={sendChatMessage} style={{ width: "15%" }}>
           Send
         </button>
       </div>
       <button
         onClick={() => {
           navigate("..");
-          peer.destroy();
         }}
       >
         Back to main page

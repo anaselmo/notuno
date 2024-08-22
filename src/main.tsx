@@ -6,7 +6,6 @@ import "./index.css";
 import { MainPage } from "./pages/main";
 import { RoomPage } from "./pages/room";
 import Peer from "peerjs";
-import { PeerProvider } from "./contexts/PeerProvider.tsx";
 
 const router = createBrowserRouter([
   {
@@ -25,12 +24,8 @@ const router = createBrowserRouter([
   },
 ]);
 
-export const peer = new Peer();
-
 createRoot(document.getElementById("root")!).render(
   // <StrictMode>
-  <PeerProvider>
-    <RouterProvider router={router} />
-  </PeerProvider>
+  <RouterProvider router={router} />
   // </StrictMode>
 );

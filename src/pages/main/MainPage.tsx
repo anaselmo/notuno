@@ -1,45 +1,32 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { usePeer } from "../../contexts/PeerProvider";
+import { Comm } from "../../utils/comm";
 
 export const MainPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { peer } = usePeer();
 
   const onCreateRoom = () => {
-    console.log("peer when button is clicked", peer);
     setIsLoading(true);
 
-    if (peer.open) {
-      console.log("My peer ID is: " + peer.id);
-      navigate(`/${peer.id}`);
-      setIsLoading(false);
-      return;
-    }
-
     const handleOpen = (id: string) => {
-      console.log("My peer ID is: " + id);
+      console.log("Room opened with: " + id);
       navigate(`/${id}`);
       setIsLoading(false);
-      peer.off("open", handleOpen);
-      peer.off("error", handleError);
     };
 
     const handleError = (err: Error) => {
       console.error(err);
       setIsLoading(false);
-      peer.off("open", handleOpen);
-      peer.off("error", handleError);
     };
 
-    peer.on("open", handleOpen);
-    peer.on("error", handleError);
+    Comm.createRoom(handleOpen, handleError);
   };
 
   const onJoinRoom = () => {
     const roomId = prompt("Please enter the room ID:");
     if (roomId) {
+      Comm.joinRoom(roomId);
       navigate(`/${roomId}`);
     } else {
       alert("Room ID cannot be empty.");
