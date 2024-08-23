@@ -21,9 +21,9 @@ export class Channel {
     this.dataCallbacks.set(name, callback);
   }
 
-  broadcast(data: any): void {
+  broadcast(callbackName: string, data: any): void {
     this.room.connections.forEach(async (conn) => {
-      conn.send({ channel: this.name, data });
+      conn.send({ callback: callbackName, channel: this.name, data });
     });
   }
 }
@@ -39,7 +39,7 @@ export class Room {
 
   constructor() {
     this.controlChannel = this.addChannel("__control");
-    this.controlChannel.on("", (data: string) => {
+    this.controlChannel.on("newConn2Host", (data: string) => {
       if (this.peer) {
         const conn = this.peer.connect(data);
         conn.on("error", (err: PeerError<any>) => {
@@ -67,6 +67,10 @@ export class Room {
   }
 
   addChannel(name: string): Channel {
+    if (name === "__control") {
+      throw new Error("__control channel is reserved");
+    }
+
     const newChannel = new Channel(name, this);
     this.channels.set(name, newChannel);
     return newChannel;
@@ -153,19 +157,21 @@ export class Room {
       })
     ) {
       conn.on("data", (data) => {
-        const channel = this.channels.get((data as Message).channel);
+        const {
+          channel: channelName,
+          callback: callbackName,
+          data: messageData,
+        } = data as Message;
+
+        const channel = this.channels.get(channelName);
         if (!channel)
-          console.log(
-            "ROOM: channel",
-            (data as Message).channel,
-            "doesn't exist"
-          );
-        // else{
-        //   channel
-        // }
-        channel?.dataCallbacks.forEach((callback) => {
-          callback((data as Message).data);
-        });
+          console.log("ROOM: channel", channelName, "doesn't exist");
+        else {
+          channel.dataCallbacks.get(callbackName)?.(messageData);
+        }
+        // channel?.dataCallbacks.forEach((callback) => {
+        //   callback((data as Message).data);
+        // });
       });
       conn.on("close", () => this.handleDisconnection(conn));
       conn.on("error", (err: PeerError<any>) => {
@@ -178,7 +184,7 @@ export class Room {
         //   peerIds.push(otherConn.peer);
         // });
         // const peerIds = this.connections.map((conn) => conn.peer);
-        this.controlChannel.broadcast(conn.peer);
+        this.controlChannel.broadcast("newConn2Host", conn.peer);
         console.log("new connection to host ", conn.peer);
       }
 

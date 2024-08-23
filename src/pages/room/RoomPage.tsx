@@ -22,7 +22,7 @@ export const RoomPage = () => {
       logicChannel = room.addChannel("logic");
     }
 
-    chatChannel.on("chatMessage", (data) => {
+    chatChannel.on("msg", (data) => {
       setMessages((prevMessages) => [...prevMessages, `Other: ${data}`]);
     });
     logicChannel.on("", () => {
@@ -45,7 +45,7 @@ export const RoomPage = () => {
 
   const sendChatMessage = () => {
     setMessages((prevMessages) => [...prevMessages, `Me: ${newMessage}`]);
-    chatChannel.broadcast(newMessage);
+    chatChannel.broadcast("msg", newMessage);
     setNewMessage("");
   };
 
