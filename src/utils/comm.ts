@@ -38,7 +38,7 @@ export class Room {
   private controlChannel: Channel;
 
   constructor() {
-    this.controlChannel = this.addChannel("__control");
+    this.controlChannel = this.addChannel_("__control");
     this.controlChannel.on("newConn2Host", (data: string) => {
       if (this.peer) {
         const conn = this.peer.connect(data);
@@ -66,14 +66,18 @@ export class Room {
     return this.channels.size;
   }
 
+  private addChannel_(name: string): Channel {
+    const newChannel = new Channel(name, this);
+    this.channels.set(name, newChannel);
+    return newChannel;
+  }
+
   addChannel(name: string): Channel {
     if (name === "__control") {
       throw new Error("__control channel is reserved");
     }
 
-    const newChannel = new Channel(name, this);
-    this.channels.set(name, newChannel);
-    return newChannel;
+    return this.addChannel_(name);
   }
 
   static joinRoom(
