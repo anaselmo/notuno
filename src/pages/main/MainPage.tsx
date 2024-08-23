@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Room, Channel } from "../../utils/comm";
+import { Room } from "../../utils/comm";
 import { useAtom } from "jotai";
 import { atomRoom } from "../../atoms";
-
-let room: Room;
+import { PeerError } from "peerjs";
 
 export const MainPage = () => {
   const [room, setRoom] = useAtom(atomRoom);
@@ -21,7 +20,7 @@ export const MainPage = () => {
       setIsLoading(false);
     };
 
-    const handleError = (err: Error) => {
+    const handleError = (err: PeerError<any>) => {
       console.error(err);
       setIsLoading(false);
     };
@@ -34,12 +33,12 @@ export const MainPage = () => {
 
     const handleOpen = (newRoom: Room) => {
       setRoom(newRoom);
-      console.log("Room", newRoom.id, "joined and my id is" + newRoom.peerId);
+      console.log("Room", newRoom.id, "joined and my id is " + newRoom.peerId);
       navigate(`/${roomId}`);
     };
 
-    const handleError = (err: Error) => {
-      console.error(err);
+    const handleError = (err: PeerError<any>) => {
+      console.error(err.type);
       setIsLoading(false);
     };
 

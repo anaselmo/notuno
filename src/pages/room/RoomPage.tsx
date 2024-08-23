@@ -17,8 +17,10 @@ export const RoomPage = () => {
   const lastMessageRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
-    chatChannel = room.addChannel("chat");
-    logicChannel = room.addChannel("logic");
+    if (room) {
+      chatChannel = room.addChannel("chat");
+      logicChannel = room.addChannel("logic");
+    }
 
     chatChannel.on("chatMessage", (data) => {
       setMessages((prevMessages) => [...prevMessages, `Other: ${data}`]);
@@ -102,7 +104,7 @@ export const RoomPage = () => {
       <button
         onClick={() => {
           navigate("..");
-          room.leaveRoom();
+          room?.leaveRoom();
         }}
       >
         Back to main page
