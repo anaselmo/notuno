@@ -1,32 +1,7 @@
 import Peer, { DataConnection, PeerError } from "peerjs";
 
-export type Message = {
-  callback: string;
-  channel: string;
-  data: any;
-};
-
-export class Channel {
-  readonly name: string;
-  public dataCallbacks: Map<string, (data: any) => void> = new Map(); //! hay que hacerlo privado y accesible desde Room
-  private room: Room;
-
-  constructor(name: string, room: Room) {
-    //!aqui tambien
-    this.name = name;
-    this.room = room;
-  }
-
-  on(name: string, callback: (data: any) => void): void {
-    this.dataCallbacks.set(name, callback);
-  }
-
-  broadcast(callbackName: string, data: any): void {
-    this.room.connections.forEach(async (conn) => {
-      conn.send({ callback: callbackName, channel: this.name, data });
-    });
-  }
-}
+import { Channel } from "./channel";
+import { Message } from "./types";
 
 export class Room {
   connections: DataConnection[] = []; //! hacerlo privado y accesible desde channel
@@ -37,7 +12,7 @@ export class Room {
   private id_: string = "";
   private controlChannel: Channel;
 
-  constructor() {
+  private constructor() {
     this.controlChannel = this.addChannel_("__control");
     this.controlChannel.on("newConn2Host", (data: string) => {
       if (this.peer) {
@@ -48,7 +23,7 @@ export class Room {
         conn.on("open", () => this.handleConnection(conn));
       }
     });
-  } //!hacerlo privado y accesible desde atom o buscar alguna alternativa null
+  }
 
   get iAmHost(): boolean {
     return this.iAmHost_;
@@ -80,10 +55,23 @@ export class Room {
     return this.addChannel_(name);
   }
 
+  static createRoom(
+    onOpen?: (room: Room) => void,
+    onError?: (err: PeerError<any>) => void,
+  ): void {
+    const newRoom = new Room();
+    newRoom.createPeer(() => {
+      newRoom.peer?.on("connection", (conn) => newRoom.handleConnection(conn));
+      newRoom.id_ = newRoom.peerId;
+      onOpen?.(newRoom);
+      newRoom.iAmHost_ = true;
+    }, onError);
+  }
+
   static joinRoom(
     id: string,
-    openCallback?: (room: Room) => void,
-    errorCallback?: (err: PeerError<any>) => void
+    onOpen?: (room: Room) => void,
+    onError?: (err: PeerError<any>) => void,
   ): void {
     const newRoom = new Room();
     newRoom.id_ = id;
@@ -97,21 +85,8 @@ export class Room {
         conn.on("open", () => room.handleConnection(conn));
         room.peer.on("connection", (conn) => newRoom.handleConnection(conn));
       }
-      openCallback?.(room);
-    }, errorCallback);
-  }
-
-  static createRoom(
-    openCallback?: (room: Room) => void,
-    errorCallback?: (err: PeerError<any>) => void
-  ): void {
-    const newRoom = new Room();
-    newRoom.createPeer(() => {
-      newRoom.peer?.on("connection", (conn) => newRoom.handleConnection(conn));
-      newRoom.id_ = newRoom.peerId;
-      openCallback?.(newRoom);
-      newRoom.iAmHost_ = true;
-    }, errorCallback);
+      onOpen?.(room);
+    }, onError);
   }
 
   leaveRoom() {
@@ -122,18 +97,18 @@ export class Room {
   }
 
   private createPeer(
-    openCallback?: (room: Room) => void,
-    errorCallback?: (err: PeerError<any>) => void
+    onOpen?: (room: Room) => void,
+    onError?: (err: PeerError<any>) => void,
   ) {
     this.peer = new Peer();
 
-    this.peer?.once("error", (err: PeerError<any>) => errorCallback?.(err));
+    this.peer?.once("error", (err: PeerError<any>) => onError?.(err));
     this.peer?.once("open", () => {
       if (!this.peer) {
         return;
       }
       this.peer.on("disconnected", this.handlePeerDisconnection);
-      openCallback?.(this);
+      onOpen?.(this);
     });
   }
 
@@ -150,7 +125,7 @@ export class Room {
     conn.removeAllListeners();
     console.log(
       "ROOM: connection removed, current connections",
-      this.connections.length
+      this.connections.length,
     );
   }
 

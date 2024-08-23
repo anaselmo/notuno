@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 export const LobbyPage = () => {
   const navigate = useNavigate();
+
   useEffect(() => {
     navigate("/");
   }, [navigate]);

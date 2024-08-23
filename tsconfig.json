@@ -1,7 +1,18 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "typeRoots": ["./node_modules/@types", "./src/types"],
+    "jsx": "preserve",
+    "esModuleInterop": true
+  },
+  "exclude": ["node_modules"],
+  "include": [
+    "src/**/*",
+    "src/**/*.{ts,tsx, png, jpg, jpeg, gif, svg}",
+    "**/*.{ts,tsx, png, jpg, jpeg, gif, svg}"
   ]
 }

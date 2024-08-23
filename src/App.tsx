@@ -1,8 +1,9 @@
-import "./App.css";
-import { Routes, Route } from "react-router-dom";
-import { RoomPage } from "./pages/room";
-import { MainPage } from "./pages/main";
-import { LobbyPage } from "./pages/lobby";
+import { Route, Routes } from "react-router-dom";
+
+import "@/App.css";
+import { LobbyPage } from "@/pages/lobby";
+import { MainPage } from "@/pages/main";
+import { RoomPage } from "@/pages/room";
 
 function App() {
   return (

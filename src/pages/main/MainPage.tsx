@@ -1,12 +1,13 @@
+import { useSetAtom } from "jotai";
+import { PeerError } from "peerjs";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Room } from "../../utils/comm";
-import { useAtom } from "jotai";
-import { atomRoom } from "../../atoms";
-import { PeerError } from "peerjs";
+
+import { roomAtom } from "@/atoms";
+import { Room } from "@/utils/peer-comunication";
 
 export const MainPage = () => {
-  const [room, setRoom] = useAtom(atomRoom);
+  const setRoom = useSetAtom(roomAtom);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 

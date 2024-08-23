@@ -1,20 +1,25 @@
-import { useLayoutEffect, useState, useRef, useEffect } from "react";
+/* eslint-disable react-hooks/exhaustive-deps */
+import { useAtomValue } from "jotai";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Channel } from "../../utils/comm";
-import { useAtom } from "jotai";
-import { atomRoom } from "../../atoms";
+
+import { roomAtom } from "@/atoms";
+import { useBeforeUnloadConfirmation } from "@/hooks/useBeforeUnloadConfirmation";
+import { Channel } from "@/utils/peer-comunication/channel";
 
 let chatChannel: Channel;
 let logicChannel: Channel;
 
 export const RoomPage = () => {
-  const [room] = useAtom(atomRoom);
-
   const { id } = useParams();
   const navigate = useNavigate();
+  const room = useAtomValue(roomAtom);
+
   const [messages, setMessages] = useState<string[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const lastMessageRef = useRef<HTMLParagraphElement>(null);
+
+  useBeforeUnloadConfirmation();
 
   useEffect(() => {
     if (room) {
@@ -28,20 +33,12 @@ export const RoomPage = () => {
     logicChannel.on("", () => {
       console.log("uwu");
     });
-
-    const handleBeforeUnload = (event: BeforeUnloadEvent) =>
-      event.preventDefault();
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
   }, []);
 
+  // Change URL pathname to `/lobby` to redirect to the lobby page if the user refreshes the page
   useLayoutEffect(() => {
     window.history.replaceState(null, "", "/lobby");
-  }, [navigate]);
+  }, []);
 
   const sendChatMessage = () => {
     setMessages((prevMessages) => [...prevMessages, `Me: ${newMessage}`]);
@@ -94,7 +91,7 @@ export const RoomPage = () => {
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={(e) => e.key === "Enter" && sendChatMessage()}
+          onKeyDown={(e) => e.key === "Enter" && sendChatMessage()}
           style={{ width: "80%", marginRight: "10px" }}
         />
         <button onClick={sendChatMessage} style={{ width: "15%" }}>
