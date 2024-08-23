@@ -1,9 +1,12 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useAtomValue } from "jotai";
+import { ArrowLeftIcon, ClipboardIcon } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { roomAtom } from "@/atoms";
+import { Button } from "@/components/Button";
 import { useBeforeUnloadConfirmation } from "@/hooks/useBeforeUnloadConfirmation";
 import { Channel } from "@/utils/peer-comunication/channel";
 
@@ -21,6 +24,11 @@ export const RoomPage = () => {
 
   useBeforeUnloadConfirmation();
 
+  // Change URL pathname to `/lobby` to redirect to the lobby page if the user refreshes the page
+  useLayoutEffect(() => {
+    window.history.replaceState(null, "", "/lobby");
+  }, []);
+
   useEffect(() => {
     if (room) {
       chatChannel = room.addChannel("chat");
@@ -35,38 +43,46 @@ export const RoomPage = () => {
     });
   }, []);
 
-  // Change URL pathname to `/lobby` to redirect to the lobby page if the user refreshes the page
-  useLayoutEffect(() => {
-    window.history.replaceState(null, "", "/lobby");
-  }, []);
-
   const sendChatMessage = () => {
+    if (!newMessage.trim()) return;
     setMessages((prevMessages) => [...prevMessages, `Me: ${newMessage}`]);
     chatChannel.broadcast("msg", newMessage);
     setNewMessage("");
   };
 
+  const backToMainPage = () => {
+    navigate("..");
+    room?.leaveRoom();
+  };
+
   const copyIdToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(id!);
-      console.log("ID copied to clipboard!");
-    } catch (err) {
-      console.error("Failed to copy: ", err);
+      toast.success("ID copied to clipboard!", {
+        position: "bottom-right",
+      });
+    } catch {
+      toast.error("Failed to copy ID to clipboard", {
+        position: "bottom-right",
+      });
     }
   };
 
   return (
-    <div>
+    <div style={{ padding: 40 }}>
       <div
         style={{
           display: "flex",
           flexDirection: "row",
           alignItems: "center",
+          justifyContent: "space-between",
           gap: 10,
         }}
       >
         <h2>Room ID: {id}</h2>
-        <button onClick={copyIdToClipboard}>Copy ID</button>
+        <Button onClick={copyIdToClipboard}>
+          <ClipboardIcon size={20} /> Copy ID
+        </Button>
       </div>
       <div
         className="chatBox"
@@ -94,18 +110,11 @@ export const RoomPage = () => {
           onKeyDown={(e) => e.key === "Enter" && sendChatMessage()}
           style={{ width: "80%", marginRight: "10px" }}
         />
-        <button onClick={sendChatMessage} style={{ width: "15%" }}>
-          Send
-        </button>
+        <Button onClick={sendChatMessage}>Send</Button>
       </div>
-      <button
-        onClick={() => {
-          navigate("..");
-          room?.leaveRoom();
-        }}
-      >
-        Back to main page
-      </button>
+      <Button onClick={backToMainPage} loading={false}>
+        <ArrowLeftIcon /> Back to main page
+      </Button>
     </div>
   );
 };

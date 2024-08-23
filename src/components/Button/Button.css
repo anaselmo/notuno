@@ -1,0 +1,78 @@
+/* Base styles for the button */
+
+:root {
+  --button-text-solid-primary: white;
+  --button-text-solid-primary-disabled: white;
+}
+
+.button-text-solid-primary {
+  color: var(--button-text-solid-primary);
+  background-color: red;
+}
+
+.button-text-solid-primary-disabled {
+  color: var(--button-text-solid-primary-disabled);
+}
+
+button {
+  font-family: inherit;
+  padding: 10px 16px;
+  cursor: pointer;
+  border: none;
+  font-size: 16px;
+  min-width: 80px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition:
+    background-color 0.3s,
+    color 0.3s;
+  clip-path: polygon(
+    0% 20%,
+    10% 0%,
+    90% 0%,
+    100% 20%,
+    100% 80%,
+    90% 100%,
+    10% 100%,
+    0% 80%
+  );
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+button.solid-primary {
+  background-color: #0077ee;
+  color: var(--button-text-solid-primary);
+}
+
+button.solid-primary:hover {
+  background-color: #0056b3;
+}
+
+button.solid-primary:focus,
+button.solid-primary:focus-visible {
+  outline: 4px auto #4a98e6;
+}
+
+button.solid-primary-disabled {
+  background-color: #007bff;
+  color: var(--button-text-solid-primary-disabled);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.solid-secondary {
+  background-color: #6c807d;
+  color: white;
+}
+
+button.solid-secondary-disabled {
+  background-color: #6c807d;
+  color: white;
+  opacity: 0.5;
+  cursor: not-allowed;
+}

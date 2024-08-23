@@ -1,7 +1,8 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+  width: 100%;
+  height: 100%;
+  display: "flex";
+  flex-direction: "column";
   text-align: center;
 }
 
@@ -10,8 +11,8 @@ html {
   margin: 0;
   padding: 0;
   height: 100%;
+  width: 100%;
   overflow: hidden;
-  font-family: Georgia, "Times New Roman", Times, serif;
 }
 
 /* Fondo en mosaico con animación */
@@ -40,6 +41,7 @@ body {
   align-items: center;
   justify-content: center;
   height: 100%;
+  width: 100%;
   text-align: center;
 }
 
@@ -62,38 +64,11 @@ h1 {
   font-size: 150px;
 }
 
-button {
-  clip-path: polygon(
-    0 20%,
-    10% 0,
-    90% 0,
-    100% 20%,
-    100% 80%,
-    90% 100%,
-    10% 100%,
-    0% 80%
-  );
-  background-color: #1a1a1a;
-  border: none;
-  color: white;
-  padding: 15px 30px;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  font-size: 32px;
-  margin: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  font-family: Georgia, "Times New Roman", Times, serif;
-}
-
-button:hover {
-  background-color: #3e3e3e;
-}
-
 /* Estilo de los botones */
 .buttonWrapper {
   margin-top: 20px;
   display: flex;
   flex-direction: column;
+  gap: 15px;
+  width: 150px;
 }

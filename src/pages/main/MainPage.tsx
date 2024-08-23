@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { roomAtom } from "@/atoms";
+import { Button } from "@/components/Button";
 import { Room } from "@/utils/peer-comunication";
 
 export const MainPage = () => {
@@ -54,10 +55,10 @@ export const MainPage = () => {
     <div className="container">
       <h1>NOTUNO</h1>
       <div className="buttonWrapper">
-        <button onClick={onJoinRoom}>Join Room</button>
-        <button onClick={onCreateRoom} disabled={isLoading}>
-          {isLoading ? "Creating Room..." : "Create Room"}
-        </button>
+        <Button onClick={onJoinRoom}>Join Room</Button>
+        <Button onClick={onCreateRoom} loading={isLoading}>
+          Create Room
+        </Button>
       </div>
     </div>
   );
