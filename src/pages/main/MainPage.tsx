@@ -1,17 +1,23 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Comm } from "../../utils/comm";
+import { Room, Channel } from "../../utils/comm";
+import { useAtom } from "jotai";
+import { atomRoom } from "../../atoms";
+
+let room: Room;
 
 export const MainPage = () => {
+  const [room, setRoom] = useAtom(atomRoom);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const onCreateRoom = () => {
     setIsLoading(true);
 
-    const handleOpen = (id: string) => {
-      console.log("Room opened with: " + id);
-      navigate(`/${id}`);
+    const handleOpen = (newRoom: Room) => {
+      setRoom(newRoom);
+      console.log("Room opened with: " + newRoom.peerId);
+      navigate(`/${newRoom.peerId}`);
       setIsLoading(false);
     };
 
@@ -20,14 +26,25 @@ export const MainPage = () => {
       setIsLoading(false);
     };
 
-    Comm.createRoom(handleOpen, handleError);
+    Room.createRoom(handleOpen, handleError);
   };
 
   const onJoinRoom = () => {
     const roomId = prompt("Please enter the room ID:");
-    if (roomId) {
-      Comm.joinRoom(roomId);
+
+    const handleOpen = (newRoom: Room) => {
+      setRoom(newRoom);
+      console.log("Room", newRoom.id, "joined and my id is" + newRoom.peerId);
       navigate(`/${roomId}`);
+    };
+
+    const handleError = (err: Error) => {
+      console.error(err);
+      setIsLoading(false);
+    };
+
+    if (roomId) {
+      Room.joinRoom(roomId, handleOpen, handleError);
     } else {
       alert("Room ID cannot be empty.");
     }

@@ -1,22 +1,32 @@
 import { useLayoutEffect, useState, useRef, useEffect } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { Comm } from "../../utils/comm";
+import { useNavigate, useParams } from "react-router-dom";
+import { Channel } from "../../utils/comm";
+import { useAtom } from "jotai";
+import { atomRoom } from "../../atoms";
 
-const chatCommunicator = new Comm("chat");
-const logicCommunicator = new Comm("logic");
+let chatChannel: Channel;
+let logicChannel: Channel;
 
 export const RoomPage = () => {
-  console.log("renderizando");
-  const location = useLocation();
+  const [room] = useAtom(atomRoom);
+
   const { id } = useParams();
   const navigate = useNavigate();
-  // const { peer } = usePeer();
   const [messages, setMessages] = useState<string[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  // const iAmHost = peer.id === id;
   const lastMessageRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
+    chatChannel = room.addChannel("chat");
+    logicChannel = room.addChannel("logic");
+
+    chatChannel.on("chatMessage", (data) => {
+      setMessages((prevMessages) => [...prevMessages, `Other: ${data}`]);
+    });
+    logicChannel.on("", () => {
+      console.log("uwu");
+    });
+
     const handleBeforeUnload = (event: BeforeUnloadEvent) =>
       event.preventDefault();
 
@@ -33,22 +43,9 @@ export const RoomPage = () => {
 
   const sendChatMessage = () => {
     setMessages((prevMessages) => [...prevMessages, `Me: ${newMessage}`]);
-    chatCommunicator.broadcast(newMessage);
+    chatChannel.broadcast(newMessage);
     setNewMessage("");
   };
-
-  useLayoutEffect(() => {
-    chatCommunicator.on("chatMessage", (data) => {
-      setMessages((prevMessages) => [...prevMessages, `Other: ${data}`]);
-    });
-    logicCommunicator.on("", () => {
-      console.log("uwu");
-    });
-
-    return () => {
-      Comm.leaveRoom();
-    };
-  }, []);
 
   const copyIdToClipboard = async () => {
     try {
@@ -105,6 +102,7 @@ export const RoomPage = () => {
       <button
         onClick={() => {
           navigate("..");
+          room.leaveRoom();
         }}
       >
         Back to main page
