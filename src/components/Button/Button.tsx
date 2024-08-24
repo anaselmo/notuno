@@ -43,9 +43,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
     const isActive = !disabled && !loading;
     const activeClass = !isActive ? "disabled" : "";
-    console.log(
-      `button-text-${variant}-${colorScheme}${!isActive ? `-${activeClass}` : ""}`,
-    );
 
     return (
       <button

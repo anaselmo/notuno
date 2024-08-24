@@ -11,10 +11,13 @@ export class Room {
   private hostIndex = -1;
   private id_: string = "";
   private controlChannel: Channel;
+  private onConnectCallback: (peerId: string) => void;
+  private onDisconnectCallback: (peerId: string) => void;
 
   private constructor() {
     this.controlChannel = this.addChannel_("__control");
-    this.controlChannel.on("newConn2Host", (data: string) => {
+    this.controlChannel.on("newConn2Host", (_hostPeerId, data: string) => {
+      console.log("newConn2Host", data);
       if (this.peer) {
         const conn = this.peer.connect(data);
         conn.on("error", (err: PeerError<any>) => {
@@ -82,10 +85,12 @@ export class Room {
           console.error(err);
         });
         room.hostIndex = 0; //! no me convence
-        conn.on("open", () => room.handleConnection(conn));
+        conn.on("open", () => {
+          room.handleConnection(conn);
+          onOpen?.(room);
+        });
         room.peer.on("connection", (conn) => newRoom.handleConnection(conn));
       }
-      onOpen?.(room);
     }, onError);
   }
 
@@ -122,6 +127,8 @@ export class Room {
       return existingConn.peer !== conn.peer;
     });
 
+    this.onDisconnectCallback?.(conn.peer);
+
     conn.removeAllListeners();
     console.log(
       "ROOM: connection removed, current connections",
@@ -146,7 +153,7 @@ export class Room {
         if (!channel)
           console.log("ROOM: channel", channelName, "doesn't exist");
         else {
-          channel.dataCallbacks.get(callbackName)?.(messageData);
+          channel.dataCallbacks.get(callbackName)?.(conn.peer, messageData);
         }
         // channel?.dataCallbacks.forEach((callback) => {
         //   callback((data as Message).data);
@@ -156,6 +163,8 @@ export class Room {
       conn.on("error", (err: PeerError<any>) => {
         console.log(err);
       });
+
+      this.onConnectCallback?.(conn.peer);
 
       if (this.iAmHost) {
         // const peerIds = [];
@@ -170,5 +179,13 @@ export class Room {
       this.connections.push(conn);
       console.log("ROOM: connection added");
     }
+  }
+
+  onConnect(callback: (peerId: string) => void) {
+    this.onConnectCallback = callback;
+  }
+
+  onDisconnect(callback: (peerId: string) => void) {
+    this.onDisconnectCallback = callback;
   }
 }
