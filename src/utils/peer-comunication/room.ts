@@ -3,6 +3,14 @@ import Peer, { DataConnection, PeerError } from "peerjs";
 import { Channel } from "./channel";
 import { Message } from "./types";
 
+enum ReservedChannels {
+  CONTROL = "__control",
+}
+
+enum ReservedDataCallbacks {
+  NEW_CONN_2_HOST = "newConn2Host",
+}
+
 export class Room {
   connections: DataConnection[] = []; //! hacerlo privado y accesible desde channel
   private channels: Map<string, Channel> = new Map();
@@ -15,17 +23,20 @@ export class Room {
   private onDisconnectCallback: (peerId: string) => void;
 
   private constructor() {
-    this.controlChannel = this.addChannel_("__control");
-    this.controlChannel.on("newConn2Host", (_hostPeerId, data: string) => {
-      console.log("newConn2Host", data);
-      if (this.peer) {
-        const conn = this.peer.connect(data);
-        conn.on("error", (err: PeerError<any>) => {
-          console.error(err);
-        });
-        conn.on("open", () => this.handleConnection(conn));
-      }
-    });
+    this.controlChannel = this.addChannel_(ReservedChannels.CONTROL);
+    this.controlChannel.on(
+      ReservedDataCallbacks.NEW_CONN_2_HOST,
+      (_hostPeerId, data: string) => {
+        console.log(ReservedDataCallbacks.NEW_CONN_2_HOST, data);
+        if (this.peer) {
+          const conn = this.peer.connect(data);
+          conn.on("error", (err: PeerError<any>) => {
+            console.error(err);
+          });
+          conn.on("open", () => this.handleConnection(conn));
+        }
+      },
+    );
   }
 
   get iAmHost(): boolean {
@@ -51,8 +62,8 @@ export class Room {
   }
 
   addChannel(name: string): Channel {
-    if (name === "__control") {
-      throw new Error("__control channel is reserved");
+    if (Object.values(ReservedChannels).some((channel) => channel === name)) {
+      throw new Error(`${name} channel is reserved`);
     }
 
     return this.addChannel_(name);
@@ -172,7 +183,10 @@ export class Room {
         //   peerIds.push(otherConn.peer);
         // });
         // const peerIds = this.connections.map((conn) => conn.peer);
-        this.controlChannel.broadcast("newConn2Host", conn.peer);
+        this.controlChannel.broadcast(
+          ReservedDataCallbacks.NEW_CONN_2_HOST,
+          conn.peer,
+        );
         console.log("new connection to host ", conn.peer);
       }
 
