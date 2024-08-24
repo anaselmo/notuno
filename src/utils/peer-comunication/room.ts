@@ -3,6 +3,14 @@ import Peer, { DataConnection, PeerError } from "peerjs";
 import { Channel } from "./channel";
 import { Message } from "./types";
 
+enum ReservedChannels {
+  CONTROL = "__control",
+}
+
+enum ReservedDataCallbacks {
+  NEW_CONN_2_HOST = "newConn2Host",
+}
+
 export class Room {
   connections: DataConnection[] = []; //! hacerlo privado y accesible desde channel
   private channels: Map<string, Channel> = new Map();
@@ -64,8 +72,8 @@ export class Room {
   }
 
   addChannel(name: string): Channel {
-    if (name === "__control") {
-      throw new Error("__control channel is reserved");
+    if (Object.values(ReservedChannels).some((channel) => channel === name)) {
+      throw new Error(`${name} channel is reserved`);
     }
 
     return this.addChannel_(name);

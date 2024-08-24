@@ -7,7 +7,7 @@ export class UniqueNameGenerator {
   }
 
   private randomName(): string {
-    return `${this.prefix}${parseInt((Math.random() * 34023423).toString())}`;
+    return `${this.prefix}${parseInt((Math.random() * 100).toString())}`;
   }
 
   generateName(): string {
