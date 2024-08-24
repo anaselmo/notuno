@@ -43,16 +43,12 @@ export const RoomPage = () => {
 
       if (existingUserIndex !== -1) {
         prevUsers[existingUserIndex].name = name;
-        console.log(prevUsers);
         return [...prevUsers];
       } else {
-        console.log([...prevUsers, { id: peerId, name }]);
         return [...prevUsers, { id: peerId, name }];
       }
     });
   };
-
-  console.log("in component", usersInfo);
 
   useEffect(() => {
     if (room) {
@@ -60,12 +56,7 @@ export const RoomPage = () => {
       chatChannel = room.addChannel("chat");
     }
 
-    // room.onConnect((peerId) => {
-    //   if (room.iAmHost) {
-    //     console.log("host!!!!!!!!");
-    //     userChannel.send(peerId, "nameDecidedByHost", `Player XXXXXXXXXXXXX`);
-    //   }
-    // });
+    userChannel.broadcast("iAmReady");
 
     room.onDisconnect((peerId) => {
       setUsersInfo((prevUsers) =>
@@ -75,36 +66,33 @@ export const RoomPage = () => {
   }, []);
 
   useEffect(() => {
+    
     userChannel.on("name", (peerId, data) => {
       handleName(peerId, data);
     });
     userChannel.on("nameDecidedByHost", (_, data) => {
       handleName(room.peerId, data);
-      console.log("name decided by host", data);
       userChannel.broadcast("name", data);
     });
     userChannel.on("iAmReady", (peerId) => {
       if (room.iAmHost) {
         const newName = playerNameGenerator.generateName();
-        console.log("sending name to", peerId);
         userChannel.send(peerId, "nameDecidedByHost", newName);
         handleName(peerId, newName);
       }
+      const myName = usersInfo.find((user)=>user.id === room.peerId).name //! esto debería ser usando el myName del componente pero no furula
       userChannel.send(peerId, "name", myName);
     });
     chatChannel.on("msg", (peerId, data) => {
       setMessages((prevMessages) => [
         ...prevMessages,
-        `${usersInfo.find((user) => user.id === peerId).name}: ${data}`,
+        `${usersInfo.find((user) => user.id === peerId)?.name ?? "unknown"}: ${data}`,
       ]);
     });
   }, [usersInfo]);
 
   useEffect(() => {
-    if (!room.iAmHost) {
-      console.log("i am ready");
-      userChannel.send(room.id, "iAmReady");
-    } else {
+    if (room.iAmHost) {
       setMyName(playerNameGenerator.generateName());
     }
   }, []);

@@ -16,7 +16,7 @@ export class Channel {
     this.dataCallbacks.set(name, callback);
   }
 
-  broadcast(callbackName: string, data: any): void {
+  broadcast(callbackName: string, data?: any): void {
     this.room.connections.forEach(async (conn) => {
       conn.send({ callback: callbackName, channel: this.name, data });
     });

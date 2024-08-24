@@ -34,9 +34,14 @@ export const MainPage = () => {
     const roomId = prompt("Please enter the room ID:");
 
     const handleOpen = (newRoom: Room) => {
+
       setRoom(newRoom);
       console.log("Room", newRoom.id, "joined and my id is " + newRoom.peerId);
-      navigate(`/${roomId}`);
+      newRoom.onReady(()=>{
+        console.log("IM READY")
+        navigate(`/${roomId}`);
+      })
+      
     };
 
     const handleError = (err: PeerError<any>) => {

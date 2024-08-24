@@ -13,17 +13,30 @@ export class Room {
   private controlChannel: Channel;
   private onConnectCallback: (peerId: string) => void;
   private onDisconnectCallback: (peerId: string) => void;
+  private onReadyCallback: () => void;
 
   private constructor() {
     this.controlChannel = this.addChannel_("__control");
-    this.controlChannel.on("newConn2Host", (_hostPeerId, data: string) => {
-      console.log("newConn2Host", data);
-      if (this.peer) {
-        const conn = this.peer.connect(data);
-        conn.on("error", (err: PeerError<any>) => {
-          console.error(err);
-        });
-        conn.on("open", () => this.handleConnection(conn));
+    this.controlChannel.on("newConn2Host", (_hostPeerId, data: string[]) => {
+      let doneConnections = 0
+      data = data.filter((id) : boolean => {return id != this.peerId})
+      const objetiveConnections = data.length
+      data.forEach((id)=>{
+        if (this.peer) {
+          const conn = this.peer.connect(id);
+          conn.on("error", (err: PeerError<any>) => {
+            console.error(err);
+          });
+          this.handleConnection(conn,() => {
+            doneConnections++
+            if(doneConnections == objetiveConnections){
+              this.onReadyCallback()
+            }
+          });
+        }
+      })
+      if(objetiveConnections == 0){
+        this.onReadyCallback()
       }
     });
   }
@@ -85,11 +98,15 @@ export class Room {
           console.error(err);
         });
         room.hostIndex = 0; //! no me convence
-        conn.on("open", () => {
-          room.handleConnection(conn);
-          onOpen?.(room);
+        // conn.on("open", () => {
+        //   room.handleConnection(conn);
+        //   onOpen?.(room);
+        // });
+        room.handleConnection(conn,onOpen);
+
+        room.peer.on("connection", (conn) => {
+          newRoom.handleConnection(conn)
         });
-        room.peer.on("connection", (conn) => newRoom.handleConnection(conn));
       }
     }, onError);
   }
@@ -136,49 +153,49 @@ export class Room {
     );
   }
 
-  private handleConnection(conn: DataConnection) {
-    if (
-      !this.connections.find((existingConn) => {
-        return existingConn.peer === conn.peer;
-      })
-    ) {
-      conn.on("data", (data) => {
-        const {
-          channel: channelName,
-          callback: callbackName,
-          data: messageData,
-        } = data as Message;
+  private handleConnection(conn: DataConnection,onOpen?: (room: Room) => void) {
+    conn.on("open",()=> {
+      if (
+        !this.connections.find((existingConn) => {
+          return existingConn.peer === conn.peer;
+        })
+      ) {
+        console.log("state",conn.open);
+        conn.on("data", (data) => {
+          const {
+            channel: channelName,
+            callback: callbackName,
+            data: messageData,
+          } = data as Message;
+  
+          const channel = this.channels.get(channelName);
+          if (!channel)
+            console.log("ROOM: channel", channelName, "doesn't exist");
+          else {
+            channel.dataCallbacks.get(callbackName)?.(conn.peer, messageData);
+          }
+          // channel?.dataCallbacks.forEach((callback) => {
+          //   callback((data as Message).data);
+          // });
+        });
+        conn.on("close", () => this.handleDisconnection(conn));
+        conn.on("error", (err: PeerError<any>) => {
+          console.log(err);
+        });
+  
+        this.onConnectCallback?.(conn.peer);
 
-        const channel = this.channels.get(channelName);
-        if (!channel)
-          console.log("ROOM: channel", channelName, "doesn't exist");
-        else {
-          channel.dataCallbacks.get(callbackName)?.(conn.peer, messageData);
+        this.connections.push(conn);
+        if (this.iAmHost) {
+          const peerIds = this.connections.map((conn) => conn.peer);
+          this.controlChannel.send(conn.peer,"newConn2Host",peerIds)
+          console.log("new connection to host ", conn.peer);
         }
-        // channel?.dataCallbacks.forEach((callback) => {
-        //   callback((data as Message).data);
-        // });
-      });
-      conn.on("close", () => this.handleDisconnection(conn));
-      conn.on("error", (err: PeerError<any>) => {
-        console.log(err);
-      });
-
-      this.onConnectCallback?.(conn.peer);
-
-      if (this.iAmHost) {
-        // const peerIds = [];
-        // this.connections.forEach((otherConn) => {
-        //   peerIds.push(otherConn.peer);
-        // });
-        // const peerIds = this.connections.map((conn) => conn.peer);
-        this.controlChannel.broadcast("newConn2Host", conn.peer);
-        console.log("new connection to host ", conn.peer);
+        console.log("ROOM: connection added:",conn.peer,"state",conn.open);
+        onOpen?.(this)
       }
-
-      this.connections.push(conn);
-      console.log("ROOM: connection added");
-    }
+    })
+    
   }
 
   onConnect(callback: (peerId: string) => void) {
@@ -187,5 +204,9 @@ export class Room {
 
   onDisconnect(callback: (peerId: string) => void) {
     this.onDisconnectCallback = callback;
+  }
+
+  onReady(callback: () => void) {
+    this.onReadyCallback = callback;
   }
 }
