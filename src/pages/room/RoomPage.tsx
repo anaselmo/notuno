@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useAtomValue } from "jotai";
-import { ArrowLeftIcon, ClipboardIcon } from "lucide-react";
+import { ArrowLeftIcon, ClipboardIcon, CrownIcon } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
@@ -188,13 +188,22 @@ export const RoomPage = () => {
           >
             <div
               style={{
-                width: 10,
-                height: 10,
+                width: 12,
+                height: 12,
                 borderRadius: "50%",
                 backgroundColor: "green",
               }}
             />
-            <p>{user.name}</p>
+            <p>
+              {room.peerId === user.id ? (
+                <strong>
+                  {user.name} {room.peerId === user.id && "(me)"}
+                </strong>
+              ) : (
+                user.name
+              )}
+            </p>
+            {user.id === id && <CrownIcon color="#eace17" />}
           </div>
         ))}
       </div>
@@ -226,10 +235,21 @@ export const RoomPage = () => {
         />
         <Button onClick={sendChatMessage}>Send</Button>
       </div>
-      <Button onClick={setName}> Set Name </Button>
-      <Button onClick={backToMainPage} loading={false}>
-        <ArrowLeftIcon /> Back to main page
-      </Button>
+      <div
+        style={{
+          marginTop: 20,
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 30,
+        }}
+      >
+        <Button onClick={setName}> Set Name </Button>
+        <Button onClick={backToMainPage} loading={false}>
+          <ArrowLeftIcon /> Back to main page
+        </Button>
+      </div>
     </div>
   );
 };
