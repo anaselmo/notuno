@@ -16,15 +16,30 @@ export class Channel {
     this.dataCallbacks.set(name, callback);
   }
 
-  broadcast(callbackName: string, data?: any): void {
-    this.room.connections.forEach(async (conn) => {
-      conn.send({ callback: callbackName, channel: this.name, data });
-    });
+  broadcast(callbackName: string, data?: any): Promise<void> {
+    const sendPromises = this.room.connections.map((conn) =>
+      conn.send({ callback: callbackName, channel: this.name, data }),
+    );
+
+    return Promise.all(sendPromises).then(() => undefined);
   }
 
-  send(peerId: string, callbackName: string, data?: any): void {
-    this.room.connections
-      .find((conn) => conn.peer === peerId)
-      ?.send({ callback: callbackName, channel: this.name, data });
+  send(peerId: string, callbackName: string, data?: any): Promise<void> {
+    const connection = this.room.connections.find(
+      (conn) => conn.peer === peerId,
+    );
+    return new Promise((resolve, reject) => {
+      if (!connection) {
+        return reject(new Error(`Connection with peerId ${peerId} not found`));
+      }
+
+      return resolve(
+        connection.send({
+          callback: callbackName,
+          channel: this.name,
+          data,
+        }),
+      );
+    });
   }
 }

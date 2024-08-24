@@ -66,7 +66,6 @@ export const RoomPage = () => {
   }, []);
 
   useEffect(() => {
-    
     userChannel.on("name", (peerId, data) => {
       handleName(peerId, data);
     });
@@ -74,14 +73,14 @@ export const RoomPage = () => {
       handleName(room.peerId, data);
       userChannel.broadcast("name", data);
     });
-    userChannel.on("iAmReady", (peerId) => {
+    userChannel.on("iAmReady", async (peerId) => {
       if (room.iAmHost) {
         const newName = playerNameGenerator.generateName();
-        userChannel.send(peerId, "nameDecidedByHost", newName);
+        await userChannel.send(peerId, "nameDecidedByHost", newName);
         handleName(peerId, newName);
       }
-      const myName = usersInfo.find((user)=>user.id === room.peerId).name //! esto debería ser usando el myName del componente pero no furula
-      userChannel.send(peerId, "name", myName);
+      const myName = usersInfo.find((user) => user.id === room.peerId).name; //! esto debería ser usando el myName del componente pero no furula
+      await userChannel.send(peerId, "name", myName);
     });
     chatChannel.on("msg", (peerId, data) => {
       setMessages((prevMessages) => [
