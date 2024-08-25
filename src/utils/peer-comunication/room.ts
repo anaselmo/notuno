@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 import Peer, { DataConnection, PeerError } from "peerjs";
 
 import { Channel } from "./channel";
@@ -11,21 +12,6 @@ enum ReservedDataCallbacks {
   NEW_CONN_2_HOST = "newConn2Host",
 }
 
-async function connectToPeer(
-  peer: Peer,
-  peerId: string,
-): Promise<DataConnection> {
-  const conn = peer.connect(peerId);
-  return new Promise((resolve, reject) => {
-    conn.once("error", (err: PeerError<any>) => {
-      reject(err);
-    });
-    conn.once("open", () => {
-      resolve(conn);
-    });
-  });
-}
-
 export class Room {
   public connections: DataConnection[] = [];
   private channels: Map<string, Channel> = new Map();
@@ -36,6 +22,7 @@ export class Room {
   private controlChannel: Channel;
   private onConnectCallback: (peerId: string) => void;
   private onDisconnectCallback: (peerId: string) => void;
+  private isReady = false;
 
   private constructor() {
     this.controlChannel = this.addChannel_("__control");
@@ -43,29 +30,35 @@ export class Room {
     this.controlChannel.on(
       ReservedDataCallbacks.NEW_CONN_2_HOST,
       async (_hostPeerId, data: string[]) => {
-        console.log("first");
-        data = data.filter((id): boolean => id !== this.peerId);
-        console.log("data", data);
-        const objectiveConnections = data.length;
-        const connectionPromises = data.map(async (id) => {
+        const peerIds = data.filter((id): boolean => id !== this.peerId);
+        const connectionPromises = peerIds.map(async (id) => {
           if (this.peer) {
-            const conn = this.peer.connect(id);
+            const conn = await Room.createConnection(this.peer, id);
+
             conn.on("error", (err: PeerError<any>) => {
-              console.error(err);
+              console.error(`Error connecting to peer ${id}:`, err);
             });
-            console.log("heelodvfodsfjdsofjdsfodjfodfjdofjsdfosdjfosfjo");
-            await this.handleConnection(conn);
+
+            return this.handleConnection(conn).catch((err) => {
+              console.error(`Failed to handle connection for peer ${id}:`, err);
+            });
           }
+          return Promise.resolve();
         });
 
-        await Promise.all(connectionPromises);
+        try {
+          connectionPromises.length > 0 &&
+            (await Promise.all(connectionPromises));
+          this.isReady = true;
+          console.log("CONNECTED TO ALL PEERS", peerIds);
+        } catch (err) {
+          console.error("Failed to establish one or more connections:", err);
+          // Handle the critical error, e.g., cleanup or retry logic
+        }
 
         console.log(
           "WE ARE FOCKING READY O QUÉ COJONES PASA POR QUÉ NO LLEGA AL PUTO ON NEWCONN2HOST",
         );
-        if (objectiveConnections === 0) {
-          return;
-        }
       },
     );
   }
@@ -101,17 +94,17 @@ export class Room {
 
   static async createRoom(): Promise<Room> {
     const newRoom = new Room();
-    await newRoom.createPeer();
-    newRoom.peer?.on(
-      "connection",
-      async (conn) => await newRoom.handleConnection(conn),
-    );
+    newRoom.peer = await this.createPeer();
 
-    console.log("ROOM: peer id", newRoom.peerId);
+    newRoom.peer.on("connection", async (conn) => {
+      await Room.openConnection(conn);
+      await newRoom.handleConnection(conn);
+    });
+
     newRoom.id_ = newRoom.peerId;
     newRoom.iAmHost_ = true;
 
-    console.log("new room created", newRoom);
+    console.log("ROOM: new room created", newRoom.id);
     return newRoom;
   }
 
@@ -119,16 +112,29 @@ export class Room {
     const newRoom = new Room();
     newRoom.id_ = id;
 
-    await newRoom.createPeer();
-    const conn = await connectToPeer(newRoom.peer, id);
+    newRoom.peer = await this.createPeer();
+    console.log("PEER: my peer", newRoom.peer.id);
+
+    const conn = await Room.createConnection(newRoom.peer, id);
+    console.log("CONNECTION: created connection to", id);
+
     newRoom.hostIndex = 0; //! no me convence
-    console.log("before handle connection");
+
     await newRoom.handleConnection(conn);
-    console.log("after handle connection");
+    console.log("CONNECTION: handled connection to", id);
+
     newRoom.peer.on("connection", async (conn) => {
-      console.log("f");
+      console.log("CONNECTION: new connection");
+      await Room.openConnection(conn);
       await newRoom.handleConnection(conn);
     });
+
+    while (!newRoom.isReady) {
+      console.log("ROOM: waiting for all connections to be ready");
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+
+    console.log("ROOM: joined room", newRoom.id);
     return newRoom;
   }
 
@@ -136,27 +142,48 @@ export class Room {
     this.connections.forEach((conn) => {
       conn.close();
     });
+    console.log("ROOM: left room", this.id);
     //? Consider clearing channels as well, if necessary
   }
 
-  private createPeer() {
-    this.peer = new Peer();
-
-    return new Promise<void>((resolve, reject) => {
-      this.peer.once("error", (err: PeerError<any>) => {
+  private static async openConnection(
+    conn: DataConnection,
+  ): Promise<DataConnection> {
+    return new Promise((resolve, reject) => {
+      conn.once("error", (err: PeerError<any>) => {
         reject(err);
       });
-      this.peer?.once("open", () => {
-        if (!this.peer) {
-          return;
-        }
-        this.peer.on("disconnected", this.handlePeerDisconnection);
-        resolve();
+      conn.once("open", () => {
+        resolve(conn);
+      });
+      if (conn.open) {
+        resolve(conn);
+      }
+    });
+  }
+
+  private static async createConnection(
+    peer: Peer,
+    id: string,
+  ): Promise<DataConnection> {
+    return await Room.openConnection(peer.connect(id));
+  }
+
+  private static createPeer(): Promise<Peer> {
+    const newPeer = new Peer();
+
+    return new Promise((resolve, reject) => {
+      newPeer.once("error", (err: PeerError<any>) => {
+        reject(err);
+      });
+      newPeer.once("open", () => {
+        newPeer.once("disconnected", this.handlePeerDisconnection);
+        resolve(newPeer);
       });
     });
   }
 
-  private handlePeerDisconnection() {
+  private static handlePeerDisconnection() {
     console.log("ROOM: peerjs disconnected from server");
   }
 
@@ -176,65 +203,61 @@ export class Room {
   }
 
   private async handleConnection(conn: DataConnection): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      console.log("first line in handleConnection");
-
+    // eslint-disable-next-line no-async-promise-executor
+    return new Promise<void>(async (resolve, reject) => {
       conn.once("error", (err: PeerError<any>) => {
         reject(err);
       });
 
-      conn.on("open", async () => {
-        if (
-          !this.connections.find((existingConn) => {
-            return existingConn.peer === conn.peer;
-          })
-        ) {
-          console.log("state", conn.open);
-          conn.on(
-            "data",
-            ({
-              channel: channelName,
-              callback: callbackName,
-              data: messageData,
-            }: Message) => {
-              const channel = this.channels.get(channelName);
-              if (!channel) {
-                console.log("ROOM: channel", channelName, "doesn't exist");
-                reject(`ROOM: channel ${channelName} doesn't exist`);
-              } else {
-                channel.dataCallbacks.get(callbackName)?.(
-                  conn.peer,
-                  messageData,
-                );
-              }
-            },
+      if (
+        !this.connections.find((existingConn) => {
+          return existingConn.peer === conn.peer;
+        })
+      ) {
+        conn.on(
+          "data",
+          ({
+            channel: channelName,
+            callback: callbackName,
+            data: messageData,
+          }: Message) => {
+            const channel = this.channels.get(channelName);
+            if (!channel) {
+              console.log("ROOM: channel", channelName, "doesn't exist");
+            } else {
+              console.log("ROOM: received data", {
+                channel,
+                callbackName,
+                messageData,
+              });
+              channel.dataCallbacks.get(callbackName)?.(conn.peer, messageData);
+            }
+          },
+        );
+        conn.on("close", () => this.handleDisconnection(conn));
+        conn.on("error", (err: PeerError<any>) => {
+          console.log(err);
+        });
+
+        this.onConnectCallback?.(conn.peer);
+
+        this.connections.push(conn);
+        console.log("ROOM: connection added:", conn.peer);
+        if (this.iAmHost) {
+          const peerIds = this.connections.map(({ peer }) => peer);
+          await this.controlChannel.send(
+            conn.peer,
+            ReservedDataCallbacks.NEW_CONN_2_HOST,
+            peerIds,
           );
-          conn.on("close", () => this.handleDisconnection(conn));
-          conn.on("error", (err: PeerError<any>) => {
-            console.log(err);
-            reject(err.type);
-          });
-
-          this.onConnectCallback?.(conn.peer);
-
-          this.connections.push(conn);
-          if (this.iAmHost) {
-            const peerIds = this.connections.map(({ peer }) => peer);
-            await this.controlChannel.send(
-              conn.peer,
-              ReservedDataCallbacks.NEW_CONN_2_HOST,
-              peerIds,
-            );
-            console.log(
-              "new connection to host ",
-              conn.peer,
-              "peerIds",
-              peerIds,
-            );
-          }
-          console.log("ROOM: connection added:", conn.peer, "state", conn.open);
+          console.log(
+            "ROOM: new connection to host ",
+            conn.peer,
+            "peerIds",
+            peerIds,
+          );
         }
-      });
+      }
       resolve();
     });
   }

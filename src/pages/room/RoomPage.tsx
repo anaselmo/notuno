@@ -56,7 +56,10 @@ export const RoomPage = () => {
       chatChannel = room.addChannel("chat");
     }
 
-    userChannel.broadcast("iAmReady");
+    const broadcastIAmReady = async () =>
+      await userChannel.broadcast("iAmReady");
+
+    broadcastIAmReady();
 
     room.onDisconnect((peerId) => {
       setUsersInfo((prevUsers) =>
@@ -69,9 +72,9 @@ export const RoomPage = () => {
     userChannel.on("name", (peerId, data) => {
       handleName(peerId, data);
     });
-    userChannel.on("nameDecidedByHost", (_, data) => {
+    userChannel.on("nameDecidedByHost", async (_, data) => {
       handleName(room.peerId, data);
-      userChannel.broadcast("name", data);
+      await userChannel.broadcast("name", data);
     });
     userChannel.on("iAmReady", async (peerId) => {
       if (room.iAmHost) {
@@ -100,19 +103,25 @@ export const RoomPage = () => {
     handleName(room.peerId, myName);
   }, [myName]);
 
-  const setName = () => {
+  useEffect(() => {
+    if (lastMessageRef.current) {
+      lastMessageRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
+  const setName = async () => {
     const name = prompt("Enter your name:");
     if (name) {
-      userChannel.broadcast("name", name);
+      await userChannel.broadcast("name", name);
       handleName(room.peerId, name);
       setMyName(name);
     }
   };
 
-  const sendChatMessage = () => {
+  const sendChatMessage = async () => {
     if (!newMessage.trim()) return;
     setMessages((prevMessages) => [...prevMessages, `Me: ${newMessage}`]);
-    chatChannel.broadcast("msg", newMessage);
+    await chatChannel.broadcast("msg", newMessage);
     setNewMessage("");
   };
 
@@ -199,7 +208,7 @@ export const RoomPage = () => {
         style={{
           border: "1px solid #ccc",
           padding: "10px",
-          maxHeight: "300px",
+          height: "150px",
           overflowY: "auto",
         }}
       >
