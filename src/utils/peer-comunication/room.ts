@@ -1,25 +1,27 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
 import Peer, { DataConnection, PeerError } from "peerjs";
 
 import { Channel } from "./channel";
 import { Message } from "./types";
 
-enum ReservedChannels {
-  CONTROL = "__control",
-}
-
-enum ReservedDataCallbacks {
-  NEW_CONN_2_HOST = "newConn2Host",
-}
+const reservedChannels = {
+  CONTROL: {
+    name: "__control",
+    callbacks: {
+      NEW_CONN_2_HOST: "newConn2Host" as const,
+    },
+  },
+};
 
 export class Room {
   public connections: DataConnection[] = [];
-  private channels: Map<string, Channel> = new Map();
+  private channels: Map<string, Channel<any>> = new Map();
   private peer: Peer | null = null;
   private iAmHost_: boolean = false;
   private hostIndex = -1;
   private id_: string = "";
-  private controlChannel: Channel;
+  private controlChannel: Channel<{
+    [reservedChannels.CONTROL.callbacks.NEW_CONN_2_HOST]: string[];
+  }>;
   private onConnectCallback: (peerId: string) => void;
   private onDisconnectCallback: (peerId: string) => void;
   private isReady = false;
@@ -28,37 +30,39 @@ export class Room {
     this.controlChannel = this.addChannel_("__control");
     console.log("created this.controlChannel.on('newConn2Host')");
     this.controlChannel.on(
-      ReservedDataCallbacks.NEW_CONN_2_HOST,
-      async (_hostPeerId, data: string[]) => {
+      reservedChannels.CONTROL.callbacks.NEW_CONN_2_HOST,
+      async (_hostPeerId, data) => {
         const peerIds = data.filter((id): boolean => id !== this.peerId);
         const connectionPromises = peerIds.map(async (id) => {
           if (this.peer) {
             const conn = await Room.createConnection(this.peer, id);
 
             conn.on("error", (err: PeerError<any>) => {
-              console.error(`Error connecting to peer ${id}:`, err);
+              console.error(`ROOM:vError connecting to peer ${id}:`, err);
             });
 
             return this.handleConnection(conn).catch((err) => {
-              console.error(`Failed to handle connection for peer ${id}:`, err);
+              console.error(
+                `ROOM: Failed to handle connection for peer ${id}:`,
+                err,
+              );
             });
           }
           return Promise.resolve();
         });
 
         try {
-          connectionPromises.length > 0 &&
-            (await Promise.all(connectionPromises));
+          if (connectionPromises.length > 0)
+            await Promise.all(connectionPromises);
           this.isReady = true;
-          console.log("CONNECTED TO ALL PEERS", peerIds);
+          console.log("ROOM: CONNECTED TO ALL PEERS", peerIds);
         } catch (err) {
-          console.error("Failed to establish one or more connections:", err);
+          console.error(
+            "ROOM:Failed to establish one or more connections:",
+            err,
+          );
           // Handle the critical error, e.g., cleanup or retry logic
         }
-
-        console.log(
-          "WE ARE FOCKING READY O QUÉ COJONES PASA POR QUÉ NO LLEGA AL PUTO ON NEWCONN2HOST",
-        );
       },
     );
   }
@@ -79,17 +83,19 @@ export class Room {
     return this.channels.size;
   }
 
-  private addChannel_(name: string): Channel {
-    const newChannel = new Channel(name, this);
+  private addChannel_<T>(name: string): Channel<T> {
+    const newChannel = new Channel<T>(name, this);
     this.channels.set(name, newChannel);
     return newChannel;
   }
 
-  addChannel(name: string): Channel {
-    if (Object.values(ReservedChannels).some((channel) => channel === name)) {
-      throw new Error(`${name} channel is reserved`);
+  addChannel<T>(name: string): Channel<T> {
+    if (
+      Object.values(reservedChannels).some((channel) => channel.name === name)
+    ) {
+      throw new Error(`ROOM: ${name} channel is reserved`);
     }
-    return this.addChannel_(name);
+    return this.addChannel_<T>(name);
   }
 
   static async createRoom(): Promise<Room> {
@@ -203,7 +209,6 @@ export class Room {
   }
 
   private async handleConnection(conn: DataConnection): Promise<void> {
-    // eslint-disable-next-line no-async-promise-executor
     return new Promise<void>(async (resolve, reject) => {
       conn.once("error", (err: PeerError<any>) => {
         reject(err);
@@ -247,7 +252,7 @@ export class Room {
           const peerIds = this.connections.map(({ peer }) => peer);
           await this.controlChannel.send(
             conn.peer,
-            ReservedDataCallbacks.NEW_CONN_2_HOST,
+            reservedChannels.CONTROL.callbacks.NEW_CONN_2_HOST,
             peerIds,
           );
           console.log(

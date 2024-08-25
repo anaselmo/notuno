@@ -1,22 +1,30 @@
 import { Room } from "./room";
 
-export class Channel {
+type ChannelDataMap = {
+  [channelName: string]: any;
+};
+
+export class Channel<T extends ChannelDataMap> {
   readonly name: string;
-  public dataCallbacks: Map<string, (peerId: string, data: any) => void> =
-    new Map(); //! hay que hacerlo privado y accesible desde Room
+  public dataCallbacks: Map<
+    keyof T,
+    (peerId: string, data: T[keyof T]) => void
+  > = new Map();
   private room: Room;
 
   constructor(name: string, room: Room) {
-    //!aqui tambien
     this.name = name;
     this.room = room;
   }
 
-  on(name: string, callback: (peerId: string, data: any) => void): void {
+  on<K extends keyof T>(
+    name: K,
+    callback: (peerId: string, data: T[K]) => void,
+  ): void {
     this.dataCallbacks.set(name, callback);
   }
 
-  broadcast(callbackName: string, data?: any): Promise<void> {
+  broadcast<K extends keyof T>(callbackName: K, data?: T[K]): Promise<void> {
     const sendPromises = this.room.connections.map((conn) =>
       conn.send({ callback: callbackName, channel: this.name, data }),
     );
@@ -24,7 +32,11 @@ export class Channel {
     return Promise.all(sendPromises).then(() => undefined);
   }
 
-  send(peerId: string, callbackName: string, data?: any): Promise<void> {
+  send<K extends keyof T>(
+    peerId: string,
+    callbackName: K,
+    data?: T[K],
+  ): Promise<void> {
     const connection = this.room.connections.find(
       (conn) => conn.peer === peerId,
     );

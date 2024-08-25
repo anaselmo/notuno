@@ -1,32 +1,64 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-import { useAtomValue } from "jotai";
+import { useAtom } from "jotai";
 import { ArrowLeftIcon, ClipboardIcon, CrownIcon } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
+import { BeatLoader } from "react-spinners";
 
 import { roomAtom } from "@/atoms";
 import { Button } from "@/components/Button";
 import { useBeforeUnloadConfirmation } from "@/hooks/useBeforeUnloadConfirmation";
 import { User } from "@/types";
+import { Room } from "@/utils/peer-comunication";
 import { Channel } from "@/utils/peer-comunication/channel";
 import { UniqueNameGenerator } from "@/utils/unique-name-generator";
 
-let userChannel: Channel;
-let chatChannel: Channel;
+let userChannel: Channel<{
+  name: string;
+  nameDecidedByHost: string;
+  iAmReady: undefined;
+}>;
+
+let chatChannel: Channel<{
+  msg: string;
+}>;
 
 const playerNameGenerator = new UniqueNameGenerator("Player");
 
 export const RoomPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const room = useAtomValue(roomAtom);
+  const [room, setRoom] = useAtom(roomAtom);
 
   const [myName, setMyName] = useState("");
   const [usersInfo, setUsersInfo] = useState<User[]>([] as User[]);
   const [messages, setMessages] = useState<string[]>([]);
   const [newMessage, setNewMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const lastMessageRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    const initializeRoom = async () => {
+      if (room) {
+        !room.iAmHost && toast.success("Successfully joined the room");
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const newRoom = await Room.joinRoom(id);
+        setRoom(newRoom);
+        toast.success("Successfully joined the room");
+      } catch {
+        toast.error("Failed to join the room");
+        navigate("..");
+        setIsLoading(false);
+      }
+    };
+
+    initializeRoom();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useBeforeUnloadConfirmation();
 
@@ -51,10 +83,16 @@ export const RoomPage = () => {
   };
 
   useEffect(() => {
-    if (room) {
-      userChannel = room.addChannel("user");
-      chatChannel = room.addChannel("chat");
-    }
+    if (!room?.iAmHost) return;
+
+    setMyName(playerNameGenerator.generateName());
+  }, [room]);
+
+  useEffect(() => {
+    if (!room) return;
+
+    userChannel = room.addChannel("user");
+    chatChannel = room.addChannel("chat");
 
     const broadcastIAmReady = async () =>
       await userChannel.broadcast("iAmReady");
@@ -66,15 +104,18 @@ export const RoomPage = () => {
         prevUsers.filter((user) => user.id !== peerId),
       );
     });
-  }, []);
+  }, [room]);
 
   useEffect(() => {
+    if (!room) return;
+
     userChannel.on("name", (peerId, data) => {
       handleName(peerId, data);
     });
     userChannel.on("nameDecidedByHost", async (_, data) => {
       handleName(room.peerId, data);
       await userChannel.broadcast("name", data);
+      setIsLoading(false);
     });
     userChannel.on("iAmReady", async (peerId) => {
       if (room.iAmHost) {
@@ -82,7 +123,6 @@ export const RoomPage = () => {
         await userChannel.send(peerId, "nameDecidedByHost", newName);
         handleName(peerId, newName);
       }
-      const myName = usersInfo.find((user) => user.id === room.peerId).name; //! esto debería ser usando el myName del componente pero no furula
       await userChannel.send(peerId, "name", myName);
     });
     chatChannel.on("msg", (peerId, data) => {
@@ -91,17 +131,13 @@ export const RoomPage = () => {
         `${usersInfo.find((user) => user.id === peerId)?.name ?? "unknown"}: ${data}`,
       ]);
     });
-  }, [usersInfo]);
+  }, [room, usersInfo, myName]);
 
   useEffect(() => {
-    if (room.iAmHost) {
-      setMyName(playerNameGenerator.generateName());
-    }
-  }, []);
+    if (!room) return;
 
-  useEffect(() => {
     handleName(room.peerId, myName);
-  }, [myName]);
+  }, [myName, room]);
 
   useEffect(() => {
     if (lastMessageRef.current) {
@@ -110,24 +146,30 @@ export const RoomPage = () => {
   }, [messages]);
 
   const setName = async () => {
+    if (!room || !userChannel) return;
+
     const name = prompt("Enter your name:");
-    if (name) {
-      await userChannel.broadcast("name", name);
-      handleName(room.peerId, name);
-      setMyName(name);
-    }
+    if (!name) return;
+
+    await userChannel.broadcast("name", name);
+    handleName(room.peerId, name);
+    setMyName(name);
   };
 
   const sendChatMessage = async () => {
+    if (!room || !chatChannel) return;
     if (!newMessage.trim()) return;
+
     setMessages((prevMessages) => [...prevMessages, `Me: ${newMessage}`]);
     await chatChannel.broadcast("msg", newMessage);
     setNewMessage("");
   };
 
   const backToMainPage = () => {
+    if (!room) return;
+
     navigate("..");
-    room?.leaveRoom();
+    room.leaveRoom();
   };
 
   const copyIdToClipboard = async () => {
@@ -142,6 +184,22 @@ export const RoomPage = () => {
       });
     }
   };
+
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          width: "100%",
+          height: "100%",
+        }}
+      >
+        <BeatLoader color="white" />
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 40 }}>
