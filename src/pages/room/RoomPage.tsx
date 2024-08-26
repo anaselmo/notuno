@@ -25,6 +25,23 @@ let chatChannel: Channel<{
 
 const playerNameGenerator = new UniqueNameGenerator("Player");
 
+function detectImageUrls(text: string): string[] {
+  const urlRegex = /(https?:\/\/[^\s]+(\.jpg|\.jpeg|\.png|\.gif))/g;
+  return text.match(urlRegex) || [];
+}
+
+function convertLinksToImages(text: string): JSX.Element {
+  const imageUrls = detectImageUrls(text);
+
+  return (
+      <div>
+          {imageUrls.map((url, index) => (
+              <img key={index} src={url} alt={`image-${index}`} />
+          ))}
+      </div>
+  );
+}
+
 export const RoomPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -36,11 +53,14 @@ export const RoomPage = () => {
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const lastMessageRef = useRef<HTMLParagraphElement>(null);
+  const [roomId,setRoomId] = useState("");
 
   useEffect(() => {
+    
     const initializeRoom = async () => {
       if (room) {
         !room.iAmHost && toast.success("Successfully joined the room");
+        setRoomId(room.id)
         return;
       }
 
@@ -49,6 +69,7 @@ export const RoomPage = () => {
         const newRoom = await Room.joinRoom(id);
         setRoom(newRoom);
         toast.success("Successfully joined the room");
+        setRoomId(newRoom.id)
       } catch {
         toast.error("Failed to join the room");
         navigate("..");
@@ -65,6 +86,10 @@ export const RoomPage = () => {
   // Change URL pathname to `/lobby` to redirect to the lobby page if the user refreshes the page
   useLayoutEffect(() => {
     window.history.replaceState(null, "", "/lobby");
+    return () =>{
+      if (room)
+        room.leaveRoom();
+    }
   }, []);
 
   const handleName = (peerId: string, name: string) => {
@@ -104,6 +129,9 @@ export const RoomPage = () => {
         prevUsers.filter((user) => user.id !== peerId),
       );
     });
+    room.onNewHost((roomId) => {
+      setRoomId(roomId)
+    })
   }, [room]);
 
   useEffect(() => {
@@ -113,7 +141,7 @@ export const RoomPage = () => {
       handleName(peerId, data);
     });
     userChannel.on("nameDecidedByHost", async (_, data) => {
-      handleName(room.peerId, data);
+      handleName(room.myId, data);
       await userChannel.broadcast("name", data);
       setIsLoading(false);
     });
@@ -123,7 +151,7 @@ export const RoomPage = () => {
         await userChannel.send(peerId, "nameDecidedByHost", newName);
         handleName(peerId, newName);
       }
-      await userChannel.send(peerId, "name", myName);
+      await userChannel.send(peerId, "name", usersInfo.find((user) => user.id === room.myId)?.name);
     });
     chatChannel.on("msg", (peerId, data) => {
       setMessages((prevMessages) => [
@@ -136,7 +164,7 @@ export const RoomPage = () => {
   useEffect(() => {
     if (!room) return;
 
-    handleName(room.peerId, myName);
+    handleName(room.myId, myName);
   }, [myName, room]);
 
   useEffect(() => {
@@ -152,7 +180,7 @@ export const RoomPage = () => {
     if (!name) return;
 
     await userChannel.broadcast("name", name);
-    handleName(room.peerId, name);
+    handleName(room.myId, name);
     setMyName(name);
   };
 
@@ -167,14 +195,13 @@ export const RoomPage = () => {
 
   const backToMainPage = () => {
     if (!room) return;
-
-    navigate("..");
     room.leaveRoom();
+    navigate("..");
   };
 
   const copyIdToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(id!);
+      await navigator.clipboard.writeText(room.id!);
       toast.success("ID copied to clipboard!", {
         position: "bottom-right",
       });
@@ -200,7 +227,6 @@ export const RoomPage = () => {
       </div>
     );
   }
-
   return (
     <div style={{ padding: 40 }}>
       <div
@@ -212,7 +238,7 @@ export const RoomPage = () => {
           gap: 10,
         }}
       >
-        <h2>Room ID: {id}</h2>
+        <h2>Room ID: {roomId}</h2>
         <Button onClick={copyIdToClipboard}>
           <ClipboardIcon size={20} /> Copy ID
         </Button>
@@ -249,15 +275,15 @@ export const RoomPage = () => {
               }}
             />
             <p>
-              {room.peerId === user.id ? (
+              {room.myId === user.id ? (
                 <strong>
-                  {user.name} {room.peerId === user.id && "(me)"}
+                  {user.name} {room.myId === user.id && "(me)"}
                 </strong>
               ) : (
                 user.name
               )}
             </p>
-            {user.id === id && <CrownIcon color="#eace17" />}
+            {user.id === roomId && <CrownIcon color="#eace17" />}
           </div>
         ))}
       </div>
@@ -270,14 +296,28 @@ export const RoomPage = () => {
           overflowY: "auto",
         }}
       >
-        {messages.map((msg, index) => (
-          <p
+        
+        {messages.map((msg, index) => {
+          const urlRegex = /(?:https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif)(?:[\?|\&][^\s]*)?)/g;
+
+          const textMsg = msg.split(urlRegex)
+          const imageMsg = msg.match(urlRegex)??[]
+
+          let result = []
+          for(let i = 0; i < textMsg.length + imageMsg.length; i++){
+            if(i&1){
+              result.push(<img key={`${index}-${i}`} src={imageMsg[i>>1]} alt={`image-${index}`} style={{ maxWidth: '40%', height: 'auto', borderRadius: '8px', margin: '5px 0' }}/>) 
+            }else
+              result.push(textMsg[i])
+          }
+
+          return <p
             key={index}
             ref={index === messages.length - 1 ? lastMessageRef : null}
           >
-            {msg}
+            {result}
           </p>
-        ))}
+        })}
       </div>
       <div className="chatInput" style={{ marginTop: "10px" }}>
         <input

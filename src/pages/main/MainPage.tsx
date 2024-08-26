@@ -20,7 +20,7 @@ export const MainPage = () => {
     try {
       const newRoom = await Room.createRoom();
       setRoom(newRoom);
-      navigate(`/${newRoom.peerId}`);
+      navigate(`/${newRoom.myId}`);
     } catch (err) {
       console.error(err);
       toast.error(err);
