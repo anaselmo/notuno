@@ -8,6 +8,9 @@ const reservedChannels = {
     name: "__control",
     callbacks: {
       NEW_CONN_2_HOST: "newConn2Host" as const,
+      VOTING_HOST: "votingHost" as const,
+      VOTE_ANSWER: "voteAnswer" as const,
+      IM_NEW_HOST: "imNewHost" as const,
     },
   },
 };
@@ -16,29 +19,38 @@ export class Room {
   public connections: DataConnection[] = [];
   private channels: Map<string, Channel<any>> = new Map();
   private peer: Peer | null = null;
-  private iAmHost_: boolean = false;
-  private hostIndex = -1;
+
   private id_: string = "";
   private controlChannel: Channel<{
-    [reservedChannels.CONTROL.callbacks.NEW_CONN_2_HOST]: string[];
+    [reservedChannels.CONTROL.callbacks.NEW_CONN_2_HOST]: {peers: string[],hPreference:number};
+    [reservedChannels.CONTROL.callbacks.VOTING_HOST]: number;
+    [reservedChannels.CONTROL.callbacks.VOTE_ANSWER]: string;
+    [reservedChannels.CONTROL.callbacks.IM_NEW_HOST]: number;
   }>;
   private onConnectCallback: (peerId: string) => void;
   private onDisconnectCallback: (peerId: string) => void;
+  private onNewHostCallback: (hostId: string) => void;
   private isReady = false;
 
+  private iAmHost_: boolean = false;
+  private hostPreferenceCount = 0;
+  private hostPreference = -1;
+  private receivedVotes: Set<string> = new Set();
+
   private constructor() {
-    this.controlChannel = this.addChannel_("__control");
+    this.controlChannel = this.addChannel_(reservedChannels.CONTROL.name);
     console.log("created this.controlChannel.on('newConn2Host')");
     this.controlChannel.on(
       reservedChannels.CONTROL.callbacks.NEW_CONN_2_HOST,
       async (_hostPeerId, data) => {
-        const peerIds = data.filter((id): boolean => id !== this.peerId);
+        this.hostPreference = data.hPreference;
+        const peerIds = data.peers.filter((id): boolean => id !== this.myId);
         const connectionPromises = peerIds.map(async (id) => {
           if (this.peer) {
             const conn = await Room.createConnection(this.peer, id);
 
             conn.on("error", (err: PeerError<any>) => {
-              console.error(`ROOM:vError connecting to peer ${id}:`, err);
+              console.error(`ROOM: Error connecting to peer ${id}:`, err);
             });
 
             return this.handleConnection(conn).catch((err) => {
@@ -65,13 +77,47 @@ export class Room {
         }
       },
     );
+    this.controlChannel.on(reservedChannels.CONTROL.callbacks.VOTING_HOST,
+      async (_senderPeerId, data) => {
+        if(data<this.hostPreference){
+          this.controlChannel.send(_senderPeerId,reservedChannels.CONTROL.callbacks.VOTE_ANSWER,_senderPeerId)
+        }else{
+          this.controlChannel.send(_senderPeerId,reservedChannels.CONTROL.callbacks.VOTE_ANSWER,this.myId)
+        }
+
+      });
+    this.controlChannel.on(reservedChannels.CONTROL.callbacks.VOTE_ANSWER,async (_senderPeerId, data) => {
+        if(data === this.myId){
+          this.receivedVotes.add(_senderPeerId)
+          if(this.receivedVotes.size == this.connections.length){
+            console.log("ROOM: I am the new host")
+            this.onNewHostCallback?.(this.myId)
+            this.receivedVotes.clear()
+            this.iAmHost_ = true
+            this.id_ = this.myId
+            this.connections.forEach((conn)=>{
+              this.controlChannel.send(conn.peer,reservedChannels.CONTROL.callbacks.IM_NEW_HOST,this.hostPreferenceCount)
+              this.hostPreferenceCount++
+            })
+          }
+          
+        }
+    });
+    this.controlChannel.on(reservedChannels.CONTROL.callbacks.IM_NEW_HOST,async(_senderPeerId, data) => {
+      console.log("ROOM:",_senderPeerId,"is the new host")
+      this.onNewHostCallback?.(_senderPeerId)
+      this.id_ = _senderPeerId
+      this
+      this.hostPreference = data;
+      this.receivedVotes.clear()
+    })
   }
 
   get iAmHost(): boolean {
     return this.iAmHost_;
   }
 
-  get peerId(): string {
+  get myId(): string {
     return this.peer?.id ?? "";
   }
 
@@ -107,7 +153,7 @@ export class Room {
       await newRoom.handleConnection(conn);
     });
 
-    newRoom.id_ = newRoom.peerId;
+    newRoom.id_ = newRoom.myId;
     newRoom.iAmHost_ = true;
 
     console.log("ROOM: new room created", newRoom.id);
@@ -123,8 +169,6 @@ export class Room {
 
     const conn = await Room.createConnection(newRoom.peer, id);
     console.log("CONNECTION: created connection to", id);
-
-    newRoom.hostIndex = 0; //! no me convence
 
     await newRoom.handleConnection(conn);
     console.log("CONNECTION: handled connection to", id);
@@ -194,7 +238,8 @@ export class Room {
   }
 
   private handleDisconnection(conn: DataConnection) {
-    conn.close();
+    // conn.close();
+    
     this.connections = this.connections.filter((existingConn) => {
       return existingConn.peer !== conn.peer;
     });
@@ -206,6 +251,18 @@ export class Room {
       "ROOM: connection removed, current connections",
       this.connections.length,
     );
+    if(conn.peer == this.id){
+      console.log(
+        "ROOM: host lost, voting new host"
+      );
+      if(this.connections.length == 0){
+        this.id_ = this.myId;
+        this.iAmHost_ = true
+        this.onNewHostCallback(this.myId)
+      }else{
+        this.controlChannel.broadcast(reservedChannels.CONTROL.callbacks.VOTING_HOST,this.hostPreference)
+      }
+    }
   }
 
   private async handleConnection(conn: DataConnection): Promise<void> {
@@ -249,12 +306,14 @@ export class Room {
         this.connections.push(conn);
         console.log("ROOM: connection added:", conn.peer);
         if (this.iAmHost) {
+          const hPreference = this.hostPreferenceCount;
           const peerIds = this.connections.map(({ peer }) => peer);
           await this.controlChannel.send(
             conn.peer,
             reservedChannels.CONTROL.callbacks.NEW_CONN_2_HOST,
-            peerIds,
+            {peers:peerIds, hPreference:hPreference},
           );
+          this.hostPreferenceCount++;
           console.log(
             "ROOM: new connection to host ",
             conn.peer,
@@ -273,5 +332,9 @@ export class Room {
 
   onDisconnect(callback: (peerId: string) => void) {
     this.onDisconnectCallback = callback;
+  }
+
+  onNewHost(callback: (peerId: string) => void) {
+    this.onNewHostCallback = callback;
   }
 }
