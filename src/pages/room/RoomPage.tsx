@@ -7,6 +7,7 @@ import { BeatLoader } from "react-spinners";
 
 import { roomAtom } from "@/atoms";
 import { Button } from "@/components/Button";
+import GameScene from "@/components/Scene/Scene";
 import { useBeforeUnloadConfirmation } from "@/hooks/useBeforeUnloadConfirmation";
 import { User } from "@/types";
 import { Room } from "@/utils/peer-comunication";
@@ -25,23 +26,6 @@ let chatChannel: Channel<{
 
 const playerNameGenerator = new UniqueNameGenerator("Player");
 
-function detectImageUrls(text: string): string[] {
-  const urlRegex = /(https?:\/\/[^\s]+(\.jpg|\.jpeg|\.png|\.gif))/g;
-  return text.match(urlRegex) || [];
-}
-
-function convertLinksToImages(text: string): JSX.Element {
-  const imageUrls = detectImageUrls(text);
-
-  return (
-      <div>
-          {imageUrls.map((url, index) => (
-              <img key={index} src={url} alt={`image-${index}`} />
-          ))}
-      </div>
-  );
-}
-
 export const RoomPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -53,14 +37,13 @@ export const RoomPage = () => {
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const lastMessageRef = useRef<HTMLParagraphElement>(null);
-  const [roomId,setRoomId] = useState("");
+  const [roomId, setRoomId] = useState("");
 
   useEffect(() => {
-    
     const initializeRoom = async () => {
       if (room) {
         !room.iAmHost && toast.success("Successfully joined the room");
-        setRoomId(room.id)
+        setRoomId(room.id);
         return;
       }
 
@@ -69,7 +52,7 @@ export const RoomPage = () => {
         const newRoom = await Room.joinRoom(id);
         setRoom(newRoom);
         toast.success("Successfully joined the room");
-        setRoomId(newRoom.id)
+        setRoomId(newRoom.id);
       } catch {
         toast.error("Failed to join the room");
         navigate("..");
@@ -86,10 +69,9 @@ export const RoomPage = () => {
   // Change URL pathname to `/lobby` to redirect to the lobby page if the user refreshes the page
   useLayoutEffect(() => {
     window.history.replaceState(null, "", "/lobby");
-    return () =>{
-      if (room)
-        room.leaveRoom();
-    }
+    return () => {
+      if (room) room.leaveRoom();
+    };
   }, []);
 
   const handleName = (peerId: string, name: string) => {
@@ -130,8 +112,8 @@ export const RoomPage = () => {
       );
     });
     room.onNewHost((roomId) => {
-      setRoomId(roomId)
-    })
+      setRoomId(roomId);
+    });
   }, [room]);
 
   useEffect(() => {
@@ -151,7 +133,11 @@ export const RoomPage = () => {
         await userChannel.send(peerId, "nameDecidedByHost", newName);
         handleName(peerId, newName);
       }
-      await userChannel.send(peerId, "name", usersInfo.find((user) => user.id === room.myId)?.name);
+      await userChannel.send(
+        peerId,
+        "name",
+        usersInfo.find((user) => user.id === room.myId)?.name,
+      );
     });
     chatChannel.on("msg", (peerId, data) => {
       setMessages((prevMessages) => [
@@ -245,104 +231,136 @@ export const RoomPage = () => {
       </div>
       <div
         style={{
-          backgroundColor: "#f0f0f033",
-          display: "flex",
-          flexDirection: "column",
-          borderRadius: 8,
-          minHeight: 40,
-          alignItems: "flex-start",
-          justifyContent: "center",
-          padding: 10,
-          marginBottom: 10,
+          display: "grid",
         }}
       >
-        {usersInfo.map((user) => (
-          <div
-            key={user.id}
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 10,
-            }}
-          >
+        <div
+          style={{
+            backgroundColor: "#f0f0f033",
+            display: "flex",
+            flexDirection: "column",
+            borderRadius: 8,
+            minHeight: 40,
+            alignItems: "flex-start",
+            justifyContent: "center",
+            padding: 10,
+            marginBottom: 10,
+            gridColumn: 1,
+            // width: 100,
+          }}
+        >
+          {usersInfo.map((user) => (
             <div
+              key={user.id}
               style={{
-                width: 12,
-                height: 12,
-                borderRadius: "50%",
-                backgroundColor: "green",
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 10,
               }}
-            />
-            <p>
-              {room.myId === user.id ? (
-                <strong>
-                  {user.name} {room.myId === user.id && "(me)"}
-                </strong>
-              ) : (
-                user.name
-              )}
-            </p>
-            {user.id === roomId && <CrownIcon color="#eace17" />}
-          </div>
-        ))}
-      </div>
-      <div
-        className="chatBox"
-        style={{
-          border: "1px solid #ccc",
-          padding: "10px",
-          height: "150px",
-          overflowY: "auto",
-        }}
-      >
-        
-        {messages.map((msg, index) => {
-          const urlRegex = /(?:https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif)(?:[\?|\&][^\s]*)?)/g;
+            >
+              <div
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: "50%",
+                  backgroundColor: "green",
+                }}
+              />
+              <p>
+                {room.myId === user.id ? (
+                  <strong>
+                    {user.name} {room.myId === user.id && "(me)"}
+                  </strong>
+                ) : (
+                  user.name
+                )}
+              </p>
+              {user.id === roomId && <CrownIcon color="#eace17" />}
+            </div>
+          ))}
+        </div>
+        <div
+          style={{
+            gridColumn: 2,
+            height: "100%",
+            // width: "1000px"
+          }}
+        >
+          <GameScene />
+        </div>
+        <div
+          className="chatBox"
+          style={{
+            border: "1px solid #ccc",
+            padding: "10px",
+            height: "150px",
+            overflowY: "auto",
+            gridColumn: 3,
+            // width: 200,
+          }}
+        >
+          {messages.map((msg, index) => {
+            const urlRegex =
+              /(?:https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif)(?:[\?|\&][^\s]*)?)/g;
 
-          const textMsg = msg.split(urlRegex)
-          const imageMsg = msg.match(urlRegex)??[]
+            const textMsg = msg.split(urlRegex);
+            const imageMsg = msg.match(urlRegex) ?? [];
 
-          let result = []
-          for(let i = 0; i < textMsg.length + imageMsg.length; i++){
-            if(i&1){
-              result.push(<img key={`${index}-${i}`} src={imageMsg[i>>1]} alt={`image-${index}`} style={{ maxWidth: '40%', height: 'auto', borderRadius: '8px', margin: '5px 0' }}/>) 
-            }else
-              result.push(textMsg[i])
-          }
+            let result = [];
+            for (let i = 0; i < textMsg.length + imageMsg.length; i++) {
+              if (i & 1) {
+                result.push(
+                  <img
+                    key={`${index}-${i}`}
+                    src={imageMsg[i >> 1]}
+                    alt={`image-${index}`}
+                    style={{
+                      maxWidth: "40%",
+                      height: "auto",
+                      borderRadius: "8px",
+                      margin: "5px 0",
+                    }}
+                  />,
+                );
+              } else result.push(textMsg[i]);
+            }
 
-          return <p
-            key={index}
-            ref={index === messages.length - 1 ? lastMessageRef : null}
-          >
-            {result}
-          </p>
-        })}
-      </div>
-      <div className="chatInput" style={{ marginTop: "10px" }}>
-        <input
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendChatMessage()}
-          style={{ width: "80%", marginRight: "10px" }}
-        />
-        <Button onClick={sendChatMessage}>Send</Button>
-      </div>
-      <div
-        style={{
-          marginTop: 20,
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 30,
-        }}
-      >
-        <Button onClick={setName}> Set Name </Button>
-        <Button onClick={backToMainPage} loading={false}>
-          <ArrowLeftIcon /> Back to main page
-        </Button>
+            return (
+              <p
+                key={index}
+                ref={index === messages.length - 1 ? lastMessageRef : null}
+              >
+                {result}
+              </p>
+            );
+          })}
+        </div>
+        <div className="chatInput" style={{ marginTop: "10px", gridColumn: 3 }}>
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendChatMessage()}
+            style={{ width: "80%", marginRight: "10px" }}
+          />
+          <Button onClick={sendChatMessage}>Send</Button>
+        </div>
+        <div
+          style={{
+            marginTop: 20,
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 30,
+          }}
+        >
+          <Button onClick={setName}> Set Name </Button>
+          <Button onClick={backToMainPage} loading={false}>
+            <ArrowLeftIcon /> Back to main page
+          </Button>
+        </div>
       </div>
     </div>
   );
