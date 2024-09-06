@@ -215,7 +215,7 @@ export const RoomPage = () => {
   }
   return (
     <div style={{ padding: 40 }}>
-      <div
+      {/* <div
         style={{
           display: "flex",
           flexDirection: "row",
@@ -228,13 +228,13 @@ export const RoomPage = () => {
         <Button onClick={copyIdToClipboard}>
           <ClipboardIcon size={20} /> Copy ID
         </Button>
-      </div>
+      </div> */}
       <div
         style={{
           display: "grid",
         }}
       >
-        <div
+        {/* <div
           style={{
             backgroundColor: "#f0f0f033",
             display: "flex",
@@ -279,17 +279,17 @@ export const RoomPage = () => {
               {user.id === roomId && <CrownIcon color="#eace17" />}
             </div>
           ))}
-        </div>
+        </div> */}
         <div
           style={{
             gridColumn: 2,
-            height: "100%",
-            // width: "1000px"
+            height: "1000px",
+            width: "1000px",
           }}
         >
           <GameScene />
         </div>
-        <div
+        {/* <div
           className="chatBox"
           style={{
             border: "1px solid #ccc",
@@ -335,8 +335,8 @@ export const RoomPage = () => {
               </p>
             );
           })}
-        </div>
-        <div className="chatInput" style={{ marginTop: "10px", gridColumn: 3 }}>
+        </div> */}
+        {/* <div className="chatInput" style={{ marginTop: "10px", gridColumn: 3 }}>
           <input
             type="text"
             value={newMessage}
@@ -345,8 +345,8 @@ export const RoomPage = () => {
             style={{ width: "80%", marginRight: "10px" }}
           />
           <Button onClick={sendChatMessage}>Send</Button>
-        </div>
-        <div
+        </div> */}
+        {/* <div
           style={{
             marginTop: 20,
             display: "flex",
@@ -360,7 +360,7 @@ export const RoomPage = () => {
           <Button onClick={backToMainPage} loading={false}>
             <ArrowLeftIcon /> Back to main page
           </Button>
-        </div>
+        </div> */}
       </div>
     </div>
   );

@@ -5,14 +5,19 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "typeRoots": ["./node_modules/@types", "./src/types"],
+    "typeRoots": [
+      "./node_modules/@types",
+      "./src/types",
+      "vite-plugin-glsl/ext"
+    ],
     "jsx": "preserve",
     "esModuleInterop": true
   },
   "exclude": ["node_modules"],
   "include": [
     "src/**/*",
-    "src/**/*.{ts,tsx, png, jpg, jpeg, gif, svg}",
-    "**/*.{ts,tsx, png, jpg, jpeg, gif, svg}"
+    "src/**/*.{ts,tsx, png, jpg, jpeg, gif, svg, glb}",
+    "**/*.{ts,tsx, png, jpg, jpeg, gif, svg, glb}",
+    "src/assets/models/*.glb" //! no se si esta linea hacia falta, pero tengo sueño
   ]
 }
