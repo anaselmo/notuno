@@ -16,8 +16,8 @@
   "exclude": ["node_modules"],
   "include": [
     "src/**/*",
-    "src/**/*.{ts,tsx, png, jpg, jpeg, gif, svg, glb}",
-    "**/*.{ts,tsx, png, jpg, jpeg, gif, svg, glb}",
+    "src/**/*.{ts, tsx, png, jpg, jpeg, gif, svg, glb, frag, vert}",
+    "**/*.{ts, tsx, png, jpg, jpeg, gif, svg, glb, frag, vert}",
     "src/assets/models/*.glb" //! no se si esta linea hacia falta, pero tengo sueño
   ]
 }
